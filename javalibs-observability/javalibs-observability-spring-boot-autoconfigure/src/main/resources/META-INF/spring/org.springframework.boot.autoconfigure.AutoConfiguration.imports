@@ -1,0 +1,2 @@
+io.javalibs.observability.autoconfigure.ObservabilityAutoConfiguration
+io.javalibs.observability.autoconfigure.CorrelationIdWebAutoConfiguration

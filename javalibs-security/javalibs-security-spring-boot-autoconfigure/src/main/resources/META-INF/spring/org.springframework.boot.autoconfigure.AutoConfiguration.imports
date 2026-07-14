@@ -1,0 +1,4 @@
+io.javalibs.security.autoconfigure.SecurityBlacklistAutoConfiguration
+io.javalibs.security.autoconfigure.JavalibsSecurityAutoConfiguration
+io.javalibs.security.autoconfigure.JavalibsOAuth2ResourceServerAutoConfiguration
+io.javalibs.security.autoconfigure.SecurityWebMvcAutoConfiguration

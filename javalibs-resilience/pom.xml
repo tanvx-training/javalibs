@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.javalibs</groupId>
+    <artifactId>javalibs-root</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
+  </parent>
+
+  <artifactId>javalibs-resilience</artifactId>
+  <packaging>pom</packaging>
+
+  <name>javalibs :: resilience</name>
+  <description>
+    Resilience4j integration with platform defaults: circuit breaker, retry and
+    rate limiter registries plus a circuit-breaking interceptor for RestClient —
+    protection against cascading failures between microservices.
+  </description>
+
+  <modules>
+    <module>javalibs-resilience-spring</module>
+    <module>javalibs-resilience-spring-boot-autoconfigure</module>
+    <module>javalibs-resilience-spring-boot-starter</module>
+  </modules>
+</project>

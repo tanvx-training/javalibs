@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.javalibs</groupId>
+    <artifactId>javalibs-datahub</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
+  </parent>
+
+  <artifactId>javalibs-datahub-spring-boot-starter</artifactId>
+
+  <name>javalibs :: datahub :: spring-boot-starter</name>
+  <description>
+    Spring Boot starter for the datahub module. Pulls in the core contracts, the Spring
+    implementations, the auto-configuration and spring-kafka so that a Kafka-backed
+    EventPublisher works out of the box. Contains no code of its own.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-datahub-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-datahub-spring</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-datahub-spring-boot-autoconfigure</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
+    </dependency>
+  </dependencies>
+</project>

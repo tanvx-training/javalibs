@@ -1,0 +1,2 @@
+io.javalibs.resilience.autoconfigure.ResilienceAutoConfiguration
+io.javalibs.resilience.autoconfigure.ResilienceRestAutoConfiguration

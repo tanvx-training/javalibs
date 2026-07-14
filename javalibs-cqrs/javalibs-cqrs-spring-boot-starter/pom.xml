@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.javalibs</groupId>
+    <artifactId>javalibs-cqrs</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>javalibs-cqrs-spring-boot-starter</artifactId>
+  <packaging>jar</packaging>
+
+  <name>javalibs :: cqrs :: spring-boot-starter</name>
+  <description>
+    Spring Boot starter for javalibs CQRS. Contains no code of its own;
+    it aggregates the core abstractions, the Spring bus implementations
+    and the auto-configuration into a single dependency.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-cqrs-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-cqrs-spring</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-cqrs-spring-boot-autoconfigure</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>

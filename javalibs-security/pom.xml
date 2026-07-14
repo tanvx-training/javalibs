@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.javalibs</groupId>
+    <artifactId>javalibs-root</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
+  </parent>
+
+  <artifactId>javalibs-security</artifactId>
+  <packaging>pom</packaging>
+
+  <name>javalibs :: security</name>
+  <description>
+    Stateless JWT authentication and authorization helpers for javalibs based services:
+    a Spring-free validation core, Spring Security integration, Spring Boot auto-configuration,
+    a one-dependency starter and a test-support library for minting tokens in tests.
+  </description>
+
+  <modules>
+    <module>javalibs-security-core</module>
+    <module>javalibs-security-spring</module>
+    <module>javalibs-security-spring-boot-autoconfigure</module>
+    <module>javalibs-security-spring-boot-starter</module>
+    <module>javalibs-security-test</module>
+  </modules>
+</project>

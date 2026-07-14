@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.javalibs</groupId>
+    <artifactId>javalibs-root</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
+  </parent>
+
+  <artifactId>javalibs-observability</artifactId>
+  <packaging>pom</packaging>
+
+  <name>javalibs :: observability</name>
+  <description>
+    Observability building blocks for javalibs: correlation ids, MDC propagation
+    across threads, common metric tags, Spring Boot auto-configuration and a
+    one-stop starter wiring actuator plus Micrometer Tracing.
+  </description>
+
+  <modules>
+    <module>javalibs-observability-core</module>
+    <module>javalibs-observability-spring</module>
+    <module>javalibs-observability-spring-boot-autoconfigure</module>
+    <module>javalibs-observability-spring-boot-starter</module>
+  </modules>
+</project>

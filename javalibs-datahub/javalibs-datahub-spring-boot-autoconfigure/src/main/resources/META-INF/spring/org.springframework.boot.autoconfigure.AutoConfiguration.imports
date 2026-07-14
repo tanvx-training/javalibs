@@ -1,0 +1,5 @@
+io.javalibs.datahub.autoconfigure.DatahubKafkaAutoConfiguration
+io.javalibs.datahub.autoconfigure.DatahubFallbackAutoConfiguration
+io.javalibs.datahub.autoconfigure.DatahubRestAutoConfiguration
+io.javalibs.datahub.autoconfigure.DatahubOutboxAutoConfiguration
+io.javalibs.datahub.autoconfigure.DatahubIdempotencyAutoConfiguration

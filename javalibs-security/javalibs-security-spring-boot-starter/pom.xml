@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.javalibs</groupId>
+    <artifactId>javalibs-security</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
+  </parent>
+
+  <artifactId>javalibs-security-spring-boot-starter</artifactId>
+
+  <name>javalibs :: security :: spring-boot-starter</name>
+  <description>
+    Spring Boot starter for javalibs security. Add this single dependency to get stateless
+    JWT authentication, REST error handling and the @RequireRole / @CurrentUser helpers
+    auto-configured. Contains no code of its own.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-security-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-security-spring</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-security-spring-boot-autoconfigure</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+  </dependencies>
+</project>
