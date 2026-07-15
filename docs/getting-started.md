@@ -244,6 +244,7 @@ class OrderApiIT extends BaseIntegrationTest {   // tự dựng PostgreSQL bằn
 
 ## Bước tiếp theo
 
+- Tổ chức thư mục/package cho service theo chuẩn → [Cấu trúc dự án](project-structure.md)
 - Bắn event Kafka an toàn với Transactional Outbox → [Cookbook § Outbox](cookbook.md#3-bắn-event-an-toàn-với-transactional-outbox)
 - Định nghĩa bộ mã lỗi nghiệp vụ `ERR-ORDER-001` → [Cookbook § Error catalog](cookbook.md#7-định-nghĩa-bộ-mã-lỗi-nghiệp-vụ)
 - Cache, circuit breaker, revoke token → [Cookbook](cookbook.md)

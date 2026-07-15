@@ -7,6 +7,7 @@ Bộ thư viện dùng chung chuẩn hóa cách xây dựng microservices với 
 | Tài liệu | Nội dung |
 |---|---|
 | [Getting Started](getting-started.md) | Dựng một microservice hoàn chỉnh với javalibs trong 15 phút |
+| [Cấu trúc dự án](project-structure.md) | Bố cục thư mục/package chuẩn cho service mới: DDD+CQRS hoặc layered gọn, chiều phụ thuộc, checklist khởi tạo |
 | [Kiến trúc](architecture.md) | Mô hình 4 tầng core → spring → autoconfigure → starter, nguyên tắc thiết kế, cách auto-configuration hoạt động |
 | [Tham chiếu cấu hình](configuration-reference.md) | Bảng tra cứu **toàn bộ** thuộc tính `javalibs.*` của mọi module |
 | [Cookbook](cookbook.md) | Công thức cho các tình huống thực tế: outbox, revoke token, Keycloak, search API, error catalog... |
