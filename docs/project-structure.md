@@ -202,13 +202,13 @@ class OrderController {
 
     @PostMapping
     @RequireRole("SALES")
-    UUID place(@Valid @RequestBody PlaceOrderRequest req, @CurrentUser UserContext user) {
-        return commandBus.dispatch(new PlaceOrderCommand(req.customerId(), req.total()));
+    ApiResponse<UUID> place(@Valid @RequestBody PlaceOrderRequest req, @CurrentUser UserContext user) {
+        return ApiResponse.ok(commandBus.dispatch(new PlaceOrderCommand(req.customerId(), req.total())));
     }
 
     @GetMapping("/{id}")
-    OrderResponse get(@PathVariable UUID id) {
-        return queryBus.ask(new GetOrderQuery(id));
+    ApiResponse<OrderResponse> get(@PathVariable UUID id) {
+        return ApiResponse.ok(queryBus.ask(new GetOrderQuery(id)));
     }
 }
 ```

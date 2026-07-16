@@ -170,18 +170,20 @@ class OrderController {
 
     /** GET /api/orders?filter=status:eq:OPEN&filter=total:gte:100&sort=createdAt,desc&page=0&size=20 */
     @GetMapping
-    PageResponse<OrderDto> search(SearchQuery query) {
+    ApiResponse<PageResponse<OrderDto>> search(SearchQuery query) {
         Page<Order> page = repository.findAll(
                 SpecificationBuilder.toSpecification(query), PageRequests.of(query));
-        return PageResponse.of(
+        return ApiResponse.ok(PageResponse.of(
                 page.getContent().stream().map(OrderDto::from).toList(),
-                page.getNumber(), page.getSize(), page.getTotalElements());
+                page.getNumber(), page.getSize(), page.getTotalElements()));
     }
 
     @GetMapping("/{id}")
-    OrderDto get(@PathVariable UUID id) {
+    ApiResponse<OrderDto> get(@PathVariable UUID id) {
+        // Mọi 2xx body đều bọc envelope ApiResponse (xem modules/web.md); lỗi thì KHÔNG bọc.
         return repository.findById(id)
                 .map(OrderDto::from)
+                .map(ApiResponse::ok)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", id));
         // → tự động thành JSON 404 chuẩn: {"status":404,"code":"ERR_RESOURCE_NOT_FOUND",...}
     }
