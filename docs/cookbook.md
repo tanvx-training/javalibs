@@ -16,11 +16,12 @@ public interface OrderRepository
 }
 
 @GetMapping("/api/orders")
-PageResponse<OrderDto> search(SearchQuery query) {   // resolver tự parse HTTP params
+ApiResponse<PageResponse<OrderDto>> search(SearchQuery query) {   // resolver tự parse HTTP params
     Page<Order> page = orderRepository.findAll(
             SpecificationBuilder.toSpecification(query), PageRequests.of(query));
-    return PageResponse.of(page.getContent().stream().map(OrderDto::from).toList(),
-            page.getNumber(), page.getSize(), page.getTotalElements());
+    return ApiResponse.ok(PageResponse.of(   // 2xx luôn bọc envelope ApiResponse (web.md)
+            page.getContent().stream().map(OrderDto::from).toList(),
+            page.getNumber(), page.getSize(), page.getTotalElements()));
 }
 ```
 

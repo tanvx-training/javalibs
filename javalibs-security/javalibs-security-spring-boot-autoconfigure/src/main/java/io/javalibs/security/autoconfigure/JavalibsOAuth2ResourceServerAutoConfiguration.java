@@ -6,13 +6,14 @@ import io.javalibs.security.spring.RestAuthenticationEntryPoint;
 import io.javalibs.security.spring.UserContextJwtAuthenticationConverter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.AnyNestedCondition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -46,7 +47,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * configuration change.</p>
  */
 @AutoConfiguration(
-        afterName = "org.springframework.boot.autoconfigure.security.oauth2.resource.servlet."
+        beforeName = "org.springframework.boot.autoconfigure.security.oauth2.resource.servlet."
                 + "OAuth2ResourceServerAutoConfiguration",
         before = org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class)
 @ConditionalOnClass({SecurityFilterChain.class, JwtDecoder.class, Jwt.class})
@@ -101,10 +102,35 @@ public class JavalibsOAuth2ResourceServerAutoConfiguration {
     }
 
     /**
-     * Stateless resource-server {@link SecurityFilterChain}. Requires the
+     * Stateless resource-server {@link SecurityFilterChain}. Relies on the
      * {@link JwtDecoder} that Spring Boot builds from
-     * {@code spring.security.oauth2.resourceserver.jwt.*}; backs off when the
-     * application defines its own chain.
+     * {@code spring.security.oauth2.resourceserver.jwt.*} being resolvable from the
+     * {@link org.springframework.context.ApplicationContext} when {@link HttpSecurity#build()}
+     * wires up {@code oauth2ResourceServer().jwt()} below; backs off when the application
+     * defines its own chain.
+     *
+     * <p>This bean is intentionally gated by {@link JwtDecoderPropertyPresentCondition} —
+     * an environment/property check mirroring Boot's own
+     * {@code spring.security.oauth2.resourceserver.jwt.issuer-uri} /
+     * {@code jwk-set-uri} / {@code public-key-location} conditions — rather than by
+     * {@code @ConditionalOnBean(JwtDecoder.class)}. This configuration class is ordered
+     * {@code beforeName} Boot's {@code OAuth2ResourceServerAutoConfiguration} so that this
+     * {@link SecurityFilterChain} bean definition is registered first, causing Boot's own
+     * default {@code jwtSecurityFilterChain} fallback (which does not know about
+     * {@code UserContextJwtAuthenticationConverter}) to correctly back off via its own
+     * {@code @ConditionalOnMissingBean(SecurityFilterChain.class)}. Because {@code beforeName}
+     * makes this class run first, the {@code JwtDecoder} bean *definition* does not exist yet
+     * at condition-evaluation time — only at actual bean instantiation time, once every
+     * auto-configuration class has finished registering its bean definitions — so a
+     * {@code @ConditionalOnBean(JwtDecoder.class)} guard here would always evaluate to false
+     * and this chain would never be created (nor would Boot's own fallback, since it too is
+     * gated on {@code @ConditionalOnBean(JwtDecoder.class)}). A property-based condition has
+     * no such ordering dependency: the {@link org.springframework.core.env.Environment} is
+     * fully populated before any configuration class's conditions are evaluated. When this
+     * condition matches, Spring Security resolves the {@code JwtDecoder} lazily from the
+     * context when this bean is instantiated, by which point Boot's
+     * {@code JwtDecoderConfiguration} bean definition is already registered, so this works
+     * correctly.</p>
      *
      * @param http                     the injected {@link HttpSecurity} prototype
      * @param properties               the bound security properties
@@ -115,7 +141,7 @@ public class JavalibsOAuth2ResourceServerAutoConfiguration {
      * @throws Exception when {@link HttpSecurity} fails to build
      */
     @Bean
-    @ConditionalOnBean(JwtDecoder.class)
+    @Conditional(JwtDecoderPropertyPresentCondition.class)
     @ConditionalOnMissingBean(SecurityFilterChain.class)
     public SecurityFilterChain javalibsOAuth2SecurityFilterChain(HttpSecurity http,
             SecurityProperties properties,
@@ -148,5 +174,32 @@ public class JavalibsOAuth2ResourceServerAutoConfiguration {
                 .logout(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable);
         return http.build();
+    }
+
+    /**
+     * Matches when any of the {@code spring.security.oauth2.resourceserver.jwt.*}
+     * properties that make Spring Boot build a {@link JwtDecoder} is present:
+     * {@code issuer-uri}, {@code jwk-set-uri} or {@code public-key-location}. Used
+     * instead of {@code @ConditionalOnBean(JwtDecoder.class)} so the match does not
+     * depend on auto-configuration processing order (see
+     * {@link #javalibsOAuth2SecurityFilterChain}).
+     */
+    static final class JwtDecoderPropertyPresentCondition extends AnyNestedCondition {
+
+        JwtDecoderPropertyPresentCondition() {
+            super(ConfigurationPhase.REGISTER_BEAN);
+        }
+
+        @ConditionalOnProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri")
+        static final class OnIssuerUri {
+        }
+
+        @ConditionalOnProperty("spring.security.oauth2.resourceserver.jwt.jwk-set-uri")
+        static final class OnJwkSetUri {
+        }
+
+        @ConditionalOnProperty("spring.security.oauth2.resourceserver.jwt.public-key-location")
+        static final class OnPublicKeyLocation {
+        }
     }
 }
