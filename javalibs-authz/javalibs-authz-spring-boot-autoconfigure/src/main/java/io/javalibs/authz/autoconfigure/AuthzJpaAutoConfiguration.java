@@ -7,12 +7,17 @@ import io.javalibs.authz.PermissionCatalog;
 import io.javalibs.authz.jpa.AuthzGroupMemberRepository;
 import io.javalibs.authz.jpa.AuthzGroupRepository;
 import io.javalibs.authz.jpa.AuthzManagementService;
+import io.javalibs.authz.jpa.AuthzRefreshTokenRepository;
 import io.javalibs.authz.jpa.AuthzRoleGrantRepository;
 import io.javalibs.authz.jpa.AuthzRoleRepository;
 import io.javalibs.authz.jpa.AuthzUserEntity;
 import io.javalibs.authz.jpa.AuthzUserRepository;
 import io.javalibs.authz.jpa.JpaGrantResolver;
 import io.javalibs.authz.jpa.JpaGroupMembershipResolver;
+import io.javalibs.authz.jpa.issuer.JpaCredentialsStore;
+import io.javalibs.authz.jpa.issuer.JpaRefreshTokenStore;
+import io.javalibs.security.issuer.CredentialsStore;
+import io.javalibs.security.issuer.RefreshTokenStore;
 import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -25,6 +30,7 @@ import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomiz
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
@@ -135,5 +141,38 @@ public class AuthzJpaAutoConfiguration {
             service.validateRolesAgainstCatalog();
         }
         return service;
+    }
+
+    /** Wires the issuer stores when javalibs-security-issuer is on the classpath. */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(CredentialsStore.class)
+    static class IssuerStoreConfiguration {
+
+        /**
+         * Exposes the default JPA-backed {@link CredentialsStore}, unless the application
+         * already supplies its own.
+         *
+         * @param userRepository repository for {@code authz_user} rows
+         * @return the JPA credentials store
+         */
+        @Bean
+        @ConditionalOnMissingBean(CredentialsStore.class)
+        JpaCredentialsStore javalibsJpaCredentialsStore(AuthzUserRepository userRepository) {
+            return new JpaCredentialsStore(userRepository);
+        }
+
+        /**
+         * Exposes the default JPA-backed {@link RefreshTokenStore}, unless the application
+         * already supplies its own.
+         *
+         * @param repository repository for {@code authz_refresh_token} rows
+         * @return the JPA refresh token store
+         */
+        @Bean
+        @ConditionalOnMissingBean(RefreshTokenStore.class)
+        JpaRefreshTokenStore javalibsJpaRefreshTokenStore(
+                AuthzRefreshTokenRepository repository) {
+            return new JpaRefreshTokenStore(repository);
+        }
     }
 }

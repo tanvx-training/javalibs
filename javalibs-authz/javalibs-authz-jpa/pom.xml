@@ -30,6 +30,15 @@
       <groupId>jakarta.persistence</groupId>
       <artifactId>jakarta.persistence-api</artifactId>
     </dependency>
+    <!-- Optional: the issuer store adapters (JpaCredentialsStore/JpaRefreshTokenStore) are
+         only usable, and only need to compile against the SPI, when javalibs-security-issuer
+         is present on the consumer's classpath. -->
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-security-issuer</artifactId>
+      <version>${project.version}</version>
+      <optional>true</optional>
+    </dependency>
     <!-- Test: full JPA stack + Testcontainers PostgreSQL -->
     <dependency>
       <groupId>io.javalibs</groupId>

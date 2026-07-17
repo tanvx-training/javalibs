@@ -49,6 +49,12 @@
       <optional>true</optional>
     </dependency>
     <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-security-issuer</artifactId>
+      <version>${project.version}</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>
       <artifactId>caffeine</artifactId>
       <optional>true</optional>
