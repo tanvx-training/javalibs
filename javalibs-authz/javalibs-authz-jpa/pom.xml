@@ -42,6 +42,16 @@
       <artifactId>spring-boot-starter-data-jpa</artifactId>
       <scope>test</scope>
     </dependency>
+    <!--
+      io.javalibs.test.BaseIntegrationTest boots with @SpringBootTest(webEnvironment = RANDOM_PORT)
+      and autowires a TestRestTemplate, so a Servlet/Spring MVC classpath is required even though
+      this module itself is not web-facing. Test-scoped only; does not leak to consumers.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-core</artifactId>
@@ -58,4 +68,13 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <!-- Binds *IT.java classes (e.g. AuthzJpaSchemaIT) into the integration-test/verify phases. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
 </project>
