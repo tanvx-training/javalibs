@@ -27,8 +27,9 @@ public interface AuthzRefreshTokenRepository extends JpaRepository<AuthzRefreshT
      * @param familyId the token family to revoke
      * @param revokedAt the instant of revocation
      * @return the number of rows updated
+     * @note the bulk update clears the persistence context so subsequent lookups see fresh state
      */
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("update AuthzRefreshTokenEntity t set t.revokedAt = :revokedAt "
             + "where t.familyId = :familyId and t.revokedAt is null")
