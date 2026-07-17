@@ -125,10 +125,13 @@ public class AuthzJpaAutoConfiguration {
             AuthzRoleGrantRepository grants,
             ObjectProvider<PermissionCatalog> catalog,
             ObjectProvider<AuthzCacheInvalidator> invalidator) {
+        PermissionCatalog catalogIfAvailable = catalog.getIfAvailable();
         AuthzManagementService service = new AuthzManagementService(users, groups, members,
-                roles, grants, catalog.getIfAvailable(), invalidator.getIfAvailable());
+                roles, grants, catalogIfAvailable, invalidator.getIfAvailable());
         // Fail fast at startup when stored roles reference unknown permission codes.
-        if (catalog.getIfAvailable() != null) {
+        if (catalogIfAvailable != null) {
+            // Called on the raw instance, before proxying: @Transactional has no effect here.
+            // Safe because findAllWithPermissions() is a self-transactional Spring Data query.
             service.validateRolesAgainstCatalog();
         }
         return service;
