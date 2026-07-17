@@ -4,3 +4,13 @@ spring:
       ddl-auto: validate
   flyway:
     locations: classpath:db/migration/javalibs-authz
+# javalibs-authz-spring-boot-starter and javalibs-security-spring-boot-starter (added in
+# Task 18 as E2E test dependencies) are on this module's whole test classpath, so every IT
+# in this module now boots JavalibsSecurityAutoConfiguration, which fails fast at startup
+# without a configured secret/public-key. This base secret keeps the non-E2E ITs (which
+# never call the HTTP layer) booting; AuthFlowE2eIT overrides it with its own secret via
+# the "e2e" profile (application-e2e.yml).
+javalibs:
+  security:
+    jwt:
+      secret: authz-jpa-test-secret-0123456789abcdef-0123456789

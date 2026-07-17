@@ -22,9 +22,10 @@ import org.springframework.context.annotation.Primary;
 /**
  * Auto-configuration for the javalibs authz engine. Backs off when no
  * {@link GrantResolver}/{@link GroupMembershipResolver} beans exist (typically provided by
- * {@link AuthzJpaAutoConfiguration} or the application itself).
+ * {@code io.javalibs.authz.jpa.autoconfigure.AuthzJpaAutoConfiguration}, in
+ * {@code javalibs-authz-jpa}, or the application itself).
  */
-@AutoConfiguration(after = AuthzJpaAutoConfiguration.class)
+@AutoConfiguration(afterName = "io.javalibs.authz.jpa.autoconfigure.AuthzJpaAutoConfiguration")
 @ConditionalOnProperty(prefix = "javalibs.authz", name = "enabled", havingValue = "true",
         matchIfMissing = true)
 @EnableConfigurationProperties(AuthzProperties.class)

@@ -13,8 +13,9 @@
   <name>javalibs :: authz :: jpa</name>
   <description>
     Default JPA persistence for javalibs authz: authz_* entities, Flyway migrations,
-    Spring Data repositories, the JPA-backed resolver SPIs, the AuthzManagementService
-    and (optionally, when javalibs-security-issuer is present) the issuer store adapters.
+    Spring Data repositories, the JPA-backed resolver SPIs, the AuthzManagementService,
+    its own AuthzJpaAutoConfiguration (self-registered; see the note below) and
+    (optionally, when javalibs-security-issuer is present) the issuer store adapters.
   </description>
   <dependencies>
     <dependency>
@@ -39,10 +40,51 @@
       <version>${project.version}</version>
       <optional>true</optional>
     </dependency>
+    <!--
+      Optional: AuthzJpaAutoConfiguration (io.javalibs.authz.jpa.autoconfigure) needs these to
+      compile. They live here — rather than in javalibs-authz-spring-boot-autoconfigure, which
+      would otherwise need a compile dependency back on this module — specifically to avoid a
+      cyclic reactor reference: javalibs-authz-spring-boot-starter (which this module pulls in
+      as a test dependency for Task 18's E2E IT, below) depends on
+      javalibs-authz-spring-boot-autoconfigure, so that module cannot also depend on
+      javalibs-authz-jpa without completing the cycle. Ownership of AuthzJpaAutoConfiguration
+      moved to this module instead — self-registered via this module's own
+      META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports —
+      exactly like javalibs-authz-spring-boot-starter's description already documents
+      ("pair with javalibs-authz-jpa for the default persistence").
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-autoconfigure</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Test: full JPA stack + Testcontainers PostgreSQL -->
     <dependency>
       <groupId>io.javalibs</groupId>
       <artifactId>javalibs-test</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!--
+      Test: full E2E stack (Task 18) — @RequirePermission interceptor + PermissionChecker,
+      stateless JWT security + the /auth/** issuer endpoints. Exercises the JPA issuer store
+      adapters (JpaCredentialsStore/JpaRefreshTokenStore) wired above end-to-end through a
+      real HTTP login -> authorize -> refresh -> logout flow.
+    -->
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-authz-spring-boot-starter</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-security-spring-boot-starter</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
@@ -61,11 +103,8 @@
       <artifactId>spring-boot-starter-web</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-core</artifactId>
-      <scope>test</scope>
-    </dependency>
+    <!-- flyway-core itself is now a compile-optional dependency above (needed to compile
+         AuthzJpaAutoConfiguration); only the Postgres-specific Flyway module is test-only. -->
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-database-postgresql</artifactId>

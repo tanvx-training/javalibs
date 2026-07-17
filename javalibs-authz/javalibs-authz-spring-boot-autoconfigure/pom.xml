@@ -38,32 +38,21 @@
     </dependency>
     <!-- Optional integrations -->
     <dependency>
-      <groupId>io.javalibs</groupId>
-      <artifactId>javalibs-authz-jpa</artifactId>
-      <version>${project.version}</version>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.data</groupId>
-      <artifactId>spring-data-jpa</artifactId>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>io.javalibs</groupId>
-      <artifactId>javalibs-security-issuer</artifactId>
-      <version>${project.version}</version>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>
       <artifactId>caffeine</artifactId>
       <optional>true</optional>
     </dependency>
-    <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-core</artifactId>
-      <optional>true</optional>
-    </dependency>
+    <!--
+      Note: this module does NOT depend on javalibs-authz-jpa (nor, transitively,
+      spring-data-jpa / flyway-core / javalibs-security-issuer only needed for the JPA
+      wiring). AuthzJpaAutoConfiguration — the JPA-backed default persistence
+      auto-configuration — now lives in and is self-registered by javalibs-authz-jpa itself,
+      specifically so this module can stay a dependency-free leaf with respect to it: this
+      module is on javalibs-authz-spring-boot-starter's classpath, and
+      javalibs-authz-jpa depends on the starter in test scope (Task 18's E2E IT), so a
+      dependency from here back to javalibs-authz-jpa would create a cyclic reactor
+      reference (autoconfigure -> jpa -> starter -> autoconfigure).
+    -->
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

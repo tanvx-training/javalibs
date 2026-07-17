@@ -1,4 +1,4 @@
-package io.javalibs.authz.autoconfigure;
+package io.javalibs.authz.jpa.autoconfigure;
 
 import io.javalibs.authz.AuthzCacheInvalidator;
 import io.javalibs.authz.GrantResolver;
@@ -28,7 +28,6 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -41,7 +40,24 @@ import java.util.List;
 /**
  * Auto-configuration wiring the default JPA persistence of javalibs-authz: entity scanning,
  * repositories, the JPA resolvers, the management service and the bundled Flyway migrations.
- * Backs off when javalibs-authz-jpa or Spring Data JPA is not on the classpath.
+ * Backs off when Spring Data JPA is not on the classpath.
+ *
+ * <p>This class lives in {@code javalibs-authz-jpa} itself (self-registered via this module's
+ * own {@code META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports})
+ * rather than in {@code javalibs-authz-spring-boot-autoconfigure}. It used to live there, with
+ * that module holding an optional compile dependency on this one. That created a cyclic
+ * reactor reference once this module started depending (in test scope) on
+ * {@code javalibs-authz-spring-boot-starter}, which itself depends on
+ * {@code javalibs-authz-spring-boot-autoconfigure}: autoconfigure &rarr; jpa &rarr; starter
+ * &rarr; autoconfigure. Owning this class here breaks that cycle and matches
+ * {@code javalibs-authz-spring-boot-starter}'s own description ("pair with
+ * javalibs-authz-jpa for the default persistence") — adding this module alone, without the
+ * central autoconfigure artifact, is enough to auto-configure the JPA layer.</p>
+ *
+ * <p>Ordering relative to {@code AuthzAutoConfiguration} (which must run after this one, since
+ * it consumes the {@link GrantResolver}/{@link GroupMembershipResolver} beans registered here)
+ * is declared on that class via {@code afterName}, referencing this class by fully-qualified
+ * name rather than by compile-time reference — for the same cycle-avoidance reason.</p>
  */
 @AutoConfiguration(before = FlywayAutoConfiguration.class,
         after = HibernateJpaAutoConfiguration.class)
@@ -50,7 +66,6 @@ import java.util.List;
         matchIfMissing = true)
 @ConditionalOnProperty(prefix = "javalibs.authz.jpa", name = "enabled", havingValue = "true",
         matchIfMissing = true)
-@EnableConfigurationProperties(AuthzProperties.class)
 @EntityScan(basePackageClasses = AuthzUserEntity.class)
 @EnableJpaRepositories(basePackageClasses = AuthzUserRepository.class)
 public class AuthzJpaAutoConfiguration {
@@ -110,7 +125,7 @@ public class AuthzJpaAutoConfiguration {
      * The optional {@link PermissionCatalog} and {@link AuthzCacheInvalidator} collaborators
      * are resolved lazily via {@link ObjectProvider}: the catalog is provided by
      * {@code javalibs-authz-core} when configured with role definitions, and the invalidator
-     * is provided by {@link AuthzAutoConfiguration.CachingConfiguration} when caching is
+     * is provided by {@code AuthzAutoConfiguration.CachingConfiguration} when caching is
      * enabled. When a catalog is present, every stored role is validated against it at
      * startup so the application fails fast on an unknown permission code.
      *

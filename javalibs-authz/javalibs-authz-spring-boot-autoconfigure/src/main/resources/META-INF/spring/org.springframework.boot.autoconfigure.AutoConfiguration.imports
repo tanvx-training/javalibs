@@ -1,3 +1,2 @@
-io.javalibs.authz.autoconfigure.AuthzJpaAutoConfiguration
 io.javalibs.authz.autoconfigure.AuthzAutoConfiguration
 io.javalibs.authz.autoconfigure.AuthzWebMvcAutoConfiguration
