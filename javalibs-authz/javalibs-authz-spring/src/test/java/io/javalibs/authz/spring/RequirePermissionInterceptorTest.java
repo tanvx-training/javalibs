@@ -35,6 +35,22 @@ class RequirePermissionInterceptorTest {
         public void unannotated() { }
     }
 
+    @RequirePermission("system.admin")
+    static class ClassLevelController {
+        public void handler() { }
+    }
+
+    @RequirePermission("system.admin")
+    static class ClassLevelWithMethodOverrideController {
+        @RequirePermission(value = "issue.read", scopeType = "project", scopeIdParam = "projectId")
+        public void overridden() { }
+    }
+
+    static class MisconfiguredController {
+        @RequirePermission(value = "issue.read", scopeType = "project")
+        public void misconfigured() { }
+    }
+
     private final RequirePermissionInterceptor interceptor = new RequirePermissionInterceptor(
             new PermissionChecker(new PermissionEvaluator(
                     subject -> subject.equals(Subject.user("u1"))
@@ -96,5 +112,31 @@ class RequirePermissionInterceptorTest {
     void allowsUnannotatedHandlerAndNonHandlerMethod() throws Exception {
         assertThat(interceptor.preHandle(request, response, handler("unannotated"))).isTrue();
         assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
+    }
+
+    @Test
+    void classLevelAnnotationApplies() throws Exception {
+        HandlerMethod handler = new HandlerMethod(new ClassLevelController(),
+                ClassLevelController.class.getMethod("handler"));
+        assertThatExceptionOfType(AccessDeniedException.class)
+                .isThrownBy(() -> interceptor.preHandle(request, response, handler));
+    }
+
+    @Test
+    void methodLevelAnnotationOverridesClassLevel() throws Exception {
+        request.setAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE,
+                Map.of("projectId", "42"));
+        HandlerMethod handler = new HandlerMethod(new ClassLevelWithMethodOverrideController(),
+                ClassLevelWithMethodOverrideController.class.getMethod("overridden"));
+        assertThat(interceptor.preHandle(request, response, handler)).isTrue();
+    }
+
+    @Test
+    void configErrorWhenScopeTypeButNoScopeIdParam() throws Exception {
+        HandlerMethod handler = new HandlerMethod(new MisconfiguredController(),
+                MisconfiguredController.class.getMethod("misconfigured"));
+        assertThatIllegalStateException()
+                .isThrownBy(() -> interceptor.preHandle(request, response, handler))
+                .withMessageContaining("scopeIdParam");
     }
 }
