@@ -134,6 +134,11 @@
         <artifactId>javalibs-security-test</artifactId>
         <version>${project.version}</version>
       </dependency>
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-security-issuer</artifactId>
+        <version>${project.version}</version>
+      </dependency>
 
       <!-- Authorization -->
       <dependency>
