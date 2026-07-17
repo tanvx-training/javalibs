@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.javalibs</groupId>
+    <artifactId>javalibs-root</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
+  </parent>
+
+  <artifactId>javalibs-authz</artifactId>
+  <packaging>pom</packaging>
+
+  <name>javalibs :: authz</name>
+  <description>
+    YouTrack-style authorization for javalibs based services: permissions bundled into roles,
+    granted to users or groups either globally or per resource scope (project, organization...).
+    Split into a Spring-free evaluation core, Spring integration (@RequirePermission,
+    PermissionChecker, caching), a default JPA persistence implementation, Spring Boot
+    auto-configuration and a one-dependency starter.
+  </description>
+
+  <modules>
+    <module>javalibs-authz-core</module>
+    <module>javalibs-authz-spring</module>
+    <module>javalibs-authz-jpa</module>
+    <module>javalibs-authz-spring-boot-autoconfigure</module>
+    <module>javalibs-authz-spring-boot-starter</module>
+  </modules>
+</project>

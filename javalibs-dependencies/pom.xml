@@ -135,6 +135,33 @@
         <version>${project.version}</version>
       </dependency>
 
+      <!-- Authorization -->
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-authz-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-authz-spring</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-authz-jpa</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-authz-spring-boot-autoconfigure</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-authz-spring-boot-starter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
       <!-- Datahub -->
       <dependency>
         <groupId>io.javalibs</groupId>

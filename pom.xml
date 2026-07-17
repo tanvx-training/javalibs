@@ -24,6 +24,7 @@
     <module>javalibs-cqrs</module>
     <module>javalibs-web</module>
     <module>javalibs-security</module>
+    <module>javalibs-authz</module>
     <module>javalibs-datahub</module>
     <module>javalibs-search</module>
     <module>javalibs-observability</module>
