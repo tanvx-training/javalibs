@@ -14,7 +14,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,6 +29,8 @@ public final class TokenIssuer {
 
     private static final String PEM_PRIVATE_KEY_BEGIN = "-----BEGIN PRIVATE KEY-----";
     private static final String PEM_PRIVATE_KEY_END = "-----END PRIVATE KEY-----";
+    private static final Set<String> RESERVED_CLAIMS =
+            Set.of("sub", "iss", "aud", "exp", "nbf", "iat", "jti");
 
     private final JwtIssuerConfig config;
     private final Clock clock;
@@ -52,6 +57,24 @@ public final class TokenIssuer {
      * @return a freshly signed access token with its id and expiry
      */
     public IssuedToken issue(String userId, String username, String email) {
+        return issue(userId, username, email, Set.of(), Map.of());
+    }
+
+    /**
+     * Issues a signed access token carrying roles and optional custom claims.
+     *
+     * @param userId the stable user id, written to the {@code sub} claim (must not be null)
+     * @param username the username, written under the configured username claim (skipped when null)
+     * @param email the email, written under the configured email claim (skipped when null)
+     * @param roles the roles, written as a JSON array under the configured roles claim (skipped
+     *     when null or empty)
+     * @param extraClaims additional claims to include; reserved names ({@code sub}, {@code iss},
+     *     {@code aud}, {@code exp}, {@code nbf}, {@code iat}, {@code jti}) and the mapped
+     *     username/email/roles claim names are ignored so they cannot be spoofed
+     * @return the signed token with its id and expiry
+     */
+    public IssuedToken issue(String userId, String username, String email,
+            Set<String> roles, Map<String, Object> extraClaims) {
         Objects.requireNonNull(userId, "userId must not be null");
         String tokenId = UUID.randomUUID().toString();
         Instant now = clock.instant();
@@ -73,6 +96,21 @@ public final class TokenIssuer {
         }
         if (email != null) {
             builder.claim(config.emailClaim(), email);
+        }
+        if (roles != null && !roles.isEmpty()) {
+            builder.claim(config.rolesClaim(), List.copyOf(roles));
+        }
+        if (extraClaims != null) {
+            for (Map.Entry<String, Object> entry : extraClaims.entrySet()) {
+                String name = entry.getKey();
+                if (name == null || RESERVED_CLAIMS.contains(name)
+                        || name.equals(config.usernameClaim())
+                        || name.equals(config.emailClaim())
+                        || name.equals(config.rolesClaim())) {
+                    continue;
+                }
+                builder.claim(name, entry.getValue());
+            }
         }
         if (signingKey instanceof SecretKey secretKey) {
             builder.signWith(secretKey, Jwts.SIG.HS256);

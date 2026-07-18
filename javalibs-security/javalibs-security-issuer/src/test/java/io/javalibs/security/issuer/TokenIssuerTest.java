@@ -15,6 +15,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -129,5 +132,64 @@ class TokenIssuerTest {
                 .build());
         assertThatThrownBy(() -> mismatchedValidator.validate(issued.token()))
                 .isInstanceOf(InvalidTokenException.class);
+    }
+
+    @Test
+    void issuedTokenCarriesRolesReadableByValidator() {
+        JwtIssuerConfig config = JwtIssuerConfig.builder().hmacSecret(SECRET).build();
+        TokenIssuer issuer = new TokenIssuer(config, Clock.systemUTC());
+
+        TokenIssuer.IssuedToken issued = issuer.issue(
+                "u1", "alice", "alice@example.com", Set.of("ADMIN", "USER"), Map.of());
+
+        JwtTokenValidator validator = new JwtTokenValidator(
+                JwtValidationConfig.builder().hmacSecret(SECRET).build());
+        UserContext user = validator.validate(issued.token());
+        assertThat(user.roles()).containsExactlyInAnyOrder("ADMIN", "USER");
+    }
+
+    @Test
+    void issuedTokenCarriesCustomClaims() {
+        JwtIssuerConfig config = JwtIssuerConfig.builder().hmacSecret(SECRET).build();
+        TokenIssuer issuer = new TokenIssuer(config, Clock.systemUTC());
+
+        TokenIssuer.IssuedToken issued = issuer.issue(
+                "u1", "alice", null, Set.of(), Map.of("department", "engineering"));
+
+        JwtTokenValidator validator = new JwtTokenValidator(
+                JwtValidationConfig.builder().hmacSecret(SECRET).build());
+        UserContext user = validator.validate(issued.token());
+        assertThat(user.attributes()).containsEntry("department", "engineering");
+    }
+
+    @Test
+    void customClaimsCannotOverrideReservedOrMappedClaims() {
+        JwtIssuerConfig config = JwtIssuerConfig.builder().hmacSecret(SECRET).build();
+        TokenIssuer issuer = new TokenIssuer(config, Clock.systemUTC());
+
+        TokenIssuer.IssuedToken issued = issuer.issue(
+                "u1", "alice", "alice@example.com",
+                Set.of("ADMIN"),
+                Map.of("sub", "attacker", "roles", List.of("HACKER"), "preferred_username", "eve"));
+
+        JwtTokenValidator validator = new JwtTokenValidator(
+                JwtValidationConfig.builder().hmacSecret(SECRET).build());
+        UserContext user = validator.validate(issued.token());
+        assertThat(user.userId()).isEqualTo("u1");
+        assertThat(user.username()).isEqualTo("alice");
+        assertThat(user.roles()).containsExactly("ADMIN");
+    }
+
+    @Test
+    void emptyRolesProduceNoRolesClaim() {
+        JwtIssuerConfig config = JwtIssuerConfig.builder().hmacSecret(SECRET).build();
+        TokenIssuer issuer = new TokenIssuer(config, Clock.systemUTC());
+
+        TokenIssuer.IssuedToken issued = issuer.issue("u1", "alice", null, Set.of(), Map.of());
+
+        JwtTokenValidator validator = new JwtTokenValidator(
+                JwtValidationConfig.builder().hmacSecret(SECRET).build());
+        UserContext user = validator.validate(issued.token());
+        assertThat(user.roles()).isEmpty();
     }
 }
