@@ -293,3 +293,79 @@ javalibs:
 ```
 
 Hoặc thay hẳn implementation: khai báo bean cùng type (`SecurityFilterChain`, `CacheManager`, `EventPublisher`, `GlobalExceptionHandler`...) — bean của javalibs tự lùi nhờ `@ConditionalOnMissingBean`.
+
+## 13. Dựng auth-service + phân quyền per-project kiểu YouTrack
+
+**Cần:** `javalibs-security-spring-boot-starter` + `javalibs-security-issuer` (phát hành token) + `javalibs-authz-spring-boot-starter` + `javalibs-authz-jpa` (schema user/role/grant + `AuthzManagementService`, cũng cung cấp `CredentialsStore`/`RefreshTokenStore` mặc định cho issuer).
+
+Bước 1 — cấu hình (HS256, chung secret cho validate lẫn issue):
+
+```yaml
+javalibs:
+  security:
+    permit-all:
+      - /actuator/health
+      - /error
+      - /auth/**              # login/refresh phải gọi được khi chưa có token
+    jwt:
+      secret: ${JWT_SECRET}   # >= 32 byte
+    issuer:
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d
+  authz:
+    cache:
+      ttl: 60s
+```
+
+Bước 2 — khai báo catalog quyền và seed user/role/grant qua `AuthzManagementService`:
+
+```java
+@Bean
+PermissionCatalog permissionCatalog() {
+    return new PermissionCatalog(Set.of("issue.read", "issue.update", "project.admin"));
+}
+
+@Component
+class AuthzSeeder implements ApplicationRunner {
+    private final AuthzManagementService authz;
+    private final PasswordHasher hasher;
+
+    AuthzSeeder(AuthzManagementService authz, PasswordHasher hasher) {
+        this.authz = authz;
+        this.hasher = hasher;
+    }
+
+    @Override
+    public void run(ApplicationArguments args) {
+        UUID userId = authz.createUser("alice", "alice@example.com", "Alice",
+                hasher.hash("s3cret"), true);
+        authz.createRole("issue-viewer", "Issue Viewer", null, Set.of("issue.read"));
+        authz.grantRole(Subject.user(userId.toString()), "issue-viewer",
+                Scope.of("project", "P1"));   // chỉ đọc issue của project P1
+    }
+}
+```
+
+Bước 3 — đăng nhập lấy token (endpoint `/auth/login` đã dựng sẵn, không cần viết controller):
+
+```
+POST /auth/login
+{"username": "alice", "password": "s3cret"}
+
+→ 200 {"tokenType":"Bearer","accessToken":"...","refreshToken":"...", ...}
+```
+
+Bước 4 — chặn theo project bằng `@RequirePermission`:
+
+```java
+@RestController
+@RequestMapping("/api/projects/{projectId}/issues")
+public class IssueController {
+
+    @GetMapping
+    @RequirePermission(value = "issue.read", scopeType = "project", scopeIdParam = "projectId")
+    public List<IssueDto> list(@PathVariable String projectId) { ... }
+}
+```
+
+`GET /api/projects/P1/issues` với token của Alice → 200; `GET /api/projects/P2/issues` (chưa được grant) → 403. Token hết hạn xoay bằng `POST /auth/refresh` (`{"refreshToken": "..."}`, rotation + reuse detection — trình lại refresh token cũ sau khi đã xoay sẽ bị coi là dấu hiệu đánh cắp và thu hồi cả family); đăng xuất bằng `POST /auth/logout` (`{"refreshToken": "...", "accessTokenId": "<jti>"}`, cần `javalibs.security.blacklist.mode` khác `none` để access token cũng mất hiệu lực ngay). Chi tiết mô hình quyền: [authz.md](modules/authz.md); chi tiết 3 endpoint và rotation: [security.md § Phát hành token (issuer)](modules/security.md#phát-hành-token-issuer).

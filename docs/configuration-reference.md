@@ -51,6 +51,28 @@ Quy ước chung:
 
 Mode `oauth2-resource-server` dùng thêm cấu hình chuẩn Boot: `spring.security.oauth2.resourceserver.jwt.issuer-uri`.
 
+### javalibs.security.issuer — [tài liệu module § Phát hành token (issuer)](modules/security.md#phát-hành-token-issuer)
+
+| Thuộc tính | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `javalibs.security.issuer.enabled` | boolean | `true` | Bật/tắt `SecurityIssuerAutoConfiguration` (cần `javalibs-security-issuer` trên classpath) |
+| `javalibs.security.issuer.private-key` | String (PEM) | — | RSA private key PKCS#8 ký RS256; bỏ trống → ký HS256 bằng `javalibs.security.jwt.secret` |
+| `javalibs.security.issuer.access-token-ttl` | Duration | `15m` | Thời gian sống access token phát hành |
+| `javalibs.security.issuer.refresh-token-ttl` | Duration | `30d` | Thời gian sống refresh token phát hành |
+| `javalibs.security.issuer.endpoints.enabled` | boolean | `true` | Đăng ký `AuthEndpoints` (`/auth/login`, `/auth/refresh`, `/auth/logout`) |
+| `javalibs.security.issuer.endpoints.base-path` | String | `/auth` | Base path 3 endpoint trên — nhớ thêm vào `javalibs.security.permit-all` |
+
+## javalibs.authz — [tài liệu module](modules/authz.md)
+
+| Thuộc tính | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `javalibs.authz.enabled` | boolean | `true` | Bật/tắt `AuthzAutoConfiguration` + `AuthzWebMvcAutoConfiguration` |
+| `javalibs.authz.cache.enabled` | boolean | `true` | Cache Caffeine cho `GrantResolver`/`GroupMembershipResolver` |
+| `javalibs.authz.cache.ttl` | Duration | `60s` | TTL cache — cận trên trễ lan truyền quyền khi scale ngang |
+| `javalibs.authz.cache.max-size` | long | `10000` | Số subject tối đa mỗi cache |
+| `javalibs.authz.jpa.enabled` | boolean | `true` | Bật `AuthzJpaAutoConfiguration` (tự đăng ký bởi `javalibs-authz-jpa`) |
+| `javalibs.authz.jpa.apply-migrations` | boolean | `true` | Tự thêm `classpath:db/migration/javalibs-authz` vào Flyway locations |
+
 ## javalibs.datahub — [tài liệu module](modules/datahub.md)
 
 | Thuộc tính | Kiểu | Mặc định | Mô tả |
