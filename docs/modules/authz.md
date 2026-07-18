@@ -169,6 +169,20 @@ Toàn bộ thuộc tính namespace `javalibs.authz.*` (bind vào `AuthzPropertie
 | `javalibs.authz.jpa.enabled` | boolean | `true` | Bật `AuthzJpaAutoConfiguration` (entity scan, repository, `JpaGrantResolver`/`JpaGroupMembershipResolver`, `AuthzManagementService`) khi `javalibs-authz-jpa` có trên classpath |
 | `javalibs.authz.jpa.apply-migrations` | boolean | `true` | Tự thêm `classpath:db/migration/javalibs-authz` vào danh sách location của Flyway |
 
+### Bẫy khi retrofit vào service đã có Flyway
+
+Hai migration `V1__authz_init.sql` và `V2__authz_refresh_token.sql` của `javalibs-authz-jpa` dùng version số nguyên nhỏ (`V1`, `V2`). Với một service **mới dựng từ đầu** (greenfield), điều này không sao — chúng là hai migration đầu tiên chạy.
+
+Nhưng nếu bạn **retrofit** `javalibs-authz-jpa` vào một service **đã tồn tại**, và service đó đi theo convention timestamp-version của [javalibs-persistence](persistence.md) (`V<yyyyMMddHHmm>__<mo_ta>.sql`, xem [Quy ước migration của platform](persistence.md#quy-ước-migration-của-platform)) — nghĩa là DB đã áp các migration mang version dạng `V202607141030`... — thì `V1`/`V2` của authz sẽ có version **nhỏ hơn** version cao nhất đã áp trên DB. Với `javalibs.persistence.flyway.out-of-order=false` (mặc định của platform, xem [persistence.md § Cấu hình](persistence.md#cấu-hình)), Flyway sẽ **fail ngay lúc khởi động** vì coi đây là migration bị bỏ sót thay vì migration mới.
+
+**Cách retrofit an toàn:**
+
+1. Đặt `javalibs.authz.jpa.apply-migrations=false` để `AuthzJpaAutoConfiguration` không tự thêm `classpath:db/migration/javalibs-authz` vào location của Flyway.
+2. Copy hai file `V1__authz_init.sql` và `V2__authz_refresh_token.sql` (nằm trong `javalibs-authz-jpa` ở `db/migration/javalibs-authz/`) vào thư mục migration riêng của app (`src/main/resources/db/migration/`), đổi tên theo version timestamp tại thời điểm merge — ví dụ `V202607181200__authz_init.sql`, `V202607181201__authz_refresh_token.sql`. Nội dung SQL giữ nguyên.
+3. Từ đó `javalibs-authz-jpa` chỉ cung cấp entity/repository/resolver/`AuthzManagementService`; phần schema do chính app quản lý cùng các migration khác của nó, tuân theo lịch sử tuyến tính đã có.
+
+Service greenfield (chưa có Flyway, hoặc mới bắt đầu với version thấp) có thể giữ mặc định `apply-migrations=true` và dùng thẳng `V1`/`V2` có sẵn.
+
 ## Cache: TTL + evict chủ động
 
 `CachingGrantResolver`/`CachingGroupMembershipResolver` (Caffeine, `expireAfterWrite`) cache theo `Subject`/`userId`, được `AuthzAutoConfiguration` bọc quanh `GrantResolver`/`GroupMembershipResolver` khi `javalibs.authz.cache.enabled=true` (mặc định) và `caffeine` có trên classpath — đánh dấu `@Primary` nên `PermissionEvaluator` luôn dùng bản đã cache.

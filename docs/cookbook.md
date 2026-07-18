@@ -298,6 +298,8 @@ Hoặc thay hẳn implementation: khai báo bean cùng type (`SecurityFilterChai
 
 **Cần:** `javalibs-security-spring-boot-starter` + `javalibs-security-issuer` (phát hành token) + `javalibs-authz-spring-boot-starter` + `javalibs-authz-jpa` (schema user/role/grant + `AuthzManagementService`, cũng cung cấp `CredentialsStore`/`RefreshTokenStore` mặc định cho issuer).
 
+> Recipe này giả định service **mới dựng từ đầu** (greenfield), dùng thẳng `V1`/`V2` migration mặc định của `javalibs-authz-jpa`. Nếu bạn gắn `javalibs-authz-jpa` vào một service **đã có sẵn** migration Flyway theo timestamp-version, xem trước [authz.md § Bẫy khi retrofit vào service đã có Flyway](modules/authz.md#bẫy-khi-retrofit-vào-service-đã-có-flyway) — mặc định sẽ fail lúc khởi động vì `out-of-order=false`.
+
 Bước 1 — cấu hình (HS256, chung secret cho validate lẫn issue):
 
 ```yaml

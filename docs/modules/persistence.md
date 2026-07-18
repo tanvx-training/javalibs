@@ -180,3 +180,4 @@ Sau đó bật `javalibs.datahub.outbox.enabled=true` / `javalibs.datahub.idempo
 - **Timestamp version phải tăng dần theo thời gian merge**: nhánh sống lâu có thể mang timestamp cũ hơn migration đã áp → bị từ chối vì `out-of-order=false`; đổi timestamp của migration đó thành thời điểm merge.
 - **Starter đóng đinh PostgreSQL**: `flyway-database-postgresql` nằm sẵn trong starter; DB khác thì đừng dùng starter (xem Ghi đè & mở rộng).
 - Migration của app là nơi tạo bảng cho các thư viện javalibs khác (outbox/idempotency của [javalibs-datahub](datahub.md)) — thư viện không bao giờ tự chạy DDL.
+- **Retrofit module có migration version số nguyên (vd `javalibs-authz-jpa`) vào service đã ở timestamp version**: `V1`/`V2` sẽ nhỏ hơn version cao nhất đã áp → fail vì `out-of-order=false` — xem cách retrofit an toàn ở [authz.md § Bẫy khi retrofit vào service đã có Flyway](authz.md#bẫy-khi-retrofit-vào-service-đã-có-flyway).
