@@ -74,7 +74,8 @@ public class AuthzAutoConfiguration {
 
         /**
          * Exposes an {@link AuthzCacheInvalidator} that evicts both caching decorators, so
-         * that {@link AuthzJpaAutoConfiguration}'s {@code AuthzManagementService} can refresh
+         * that {@code io.javalibs.authz.jpa.autoconfigure.AuthzJpaAutoConfiguration}'s
+         * {@code AuthzManagementService} can refresh
          * caches after grant/membership mutations.
          *
          * @param grants the caching grant resolver to evict
