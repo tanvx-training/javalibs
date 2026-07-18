@@ -31,8 +31,15 @@ import java.time.Clock;
  * {@link TokenIssuer} beans are created. Signing reuses the {@code javalibs.security.jwt.*}
  * settings (issuer, audience, HMAC secret) so every javalibs service can validate tokens
  * issued here out of the box.</p>
+ *
+ * <p>Declared to run after {@code io.javalibs.authz.jpa.autoconfigure.AuthzJpaAutoConfiguration}
+ * ({@code afterName}, string reference — no compile-time dependency on javalibs-authz-jpa):
+ * when that module is on the classpath, it is the default source of the {@link CredentialsStore}
+ * and {@link RefreshTokenStore} beans this configuration consumes.</p>
  */
-@AutoConfiguration
+// The default CredentialsStore/RefreshTokenStore beans come from AuthzJpaAutoConfiguration
+// (javalibs-authz-jpa) when it's present; today's alphabetical ordering is accidental.
+@AutoConfiguration(afterName = "io.javalibs.authz.jpa.autoconfigure.AuthzJpaAutoConfiguration")
 @ConditionalOnClass(AuthenticationService.class)
 @ConditionalOnProperty(prefix = "javalibs.security.issuer", name = "enabled",
         havingValue = "true", matchIfMissing = true)
