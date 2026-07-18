@@ -16,7 +16,9 @@ import java.util.Set;
  *     omitted)
  * @param extraClaims additional custom claims written into the access token; never null
  *     (empty when omitted). Reserved and already-mapped claim names are ignored by
- *     {@link TokenIssuer}.
+ *     {@link TokenIssuer}. Values must come only from trusted (server-side) sources: names the
+ *     issuer does not map (e.g. {@code tenant}) are written verbatim and may populate
+ *     validator-mapped fields such as {@code UserContext.tenantId}.
  */
 public record StoredCredentials(
         String userId, String username, String email, String passwordHash, boolean enabled,

@@ -70,7 +70,9 @@ public final class TokenIssuer {
      *     when null or empty)
      * @param extraClaims additional claims to include; reserved names ({@code sub}, {@code iss},
      *     {@code aud}, {@code exp}, {@code nbf}, {@code iat}, {@code jti}) and the mapped
-     *     username/email/roles claim names are ignored so they cannot be spoofed
+     *     username/email/roles claim names are ignored so they cannot be spoofed. Only those
+     *     names are guarded — unmapped names such as {@code tenant} are written verbatim, so
+     *     callers must supply extraClaims only from trusted (server-side) sources.
      * @return the signed token with its id and expiry
      */
     public IssuedToken issue(String userId, String username, String email,

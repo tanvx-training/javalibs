@@ -181,6 +181,22 @@ class TokenIssuerTest {
     }
 
     @Test
+    void customRolesClaimCannotOverrideEmptyLegitimateRoles() {
+        JwtIssuerConfig config = JwtIssuerConfig.builder().hmacSecret(SECRET).build();
+        TokenIssuer issuer = new TokenIssuer(config, Clock.systemUTC());
+
+        TokenIssuer.IssuedToken issued = issuer.issue(
+                "u1", "alice", "alice@example.com",
+                Set.of(),
+                Map.of("roles", List.of("HACKER")));
+
+        JwtTokenValidator validator = new JwtTokenValidator(
+                JwtValidationConfig.builder().hmacSecret(SECRET).build());
+        UserContext user = validator.validate(issued.token());
+        assertThat(user.roles()).isEmpty();
+    }
+
+    @Test
     void emptyRolesProduceNoRolesClaim() {
         JwtIssuerConfig config = JwtIssuerConfig.builder().hmacSecret(SECRET).build();
         TokenIssuer issuer = new TokenIssuer(config, Clock.systemUTC());
