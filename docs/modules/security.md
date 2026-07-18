@@ -11,6 +11,7 @@
 | `javalibs-security-spring-boot-autoconfigure` | `SecurityProperties` (`javalibs.security.*`) + 4 auto-configuration | spring module, `spring-boot-autoconfigure`; optional: redis/oauth2 như trên |
 | `javalibs-security-spring-boot-starter` | Không có code — gom core + spring + autoconfigure + `spring-boot-starter-security` | — |
 | `javalibs-security-test` | `JwtTestFactory` (sinh JWT HS256), `TestUserContexts` (fixture) — dùng với `scope=test` | core, jjwt **compile scope** (để tự sinh token standalone) |
+| `javalibs-security-issuer` | Phát hành token: `PasswordHasher`, `JwtIssuerConfig`, `TokenIssuer`, `AuthenticationService` (rotation + reuse detection), SPI `CredentialsStore`/`RefreshTokenStore`, endpoint `AuthEndpoints` (`/auth/login`, `/auth/refresh`, `/auth/logout`) — xem [Phát hành token (issuer)](#phát-hành-token-issuer) | core, `spring-security-crypto`, `spring-webmvc`, jjwt; optional trong `javalibs-security-spring-boot-autoconfigure` — thêm module này vào classpath để kích hoạt `SecurityIssuerAutoConfiguration` |
 
 ## Khi nào dùng / không dùng
 
@@ -300,6 +301,122 @@ Toàn bộ thuộc tính namespace `javalibs.security.*` (bind vào `SecurityPro
 
 Lưu ý: các tên claim trong `javalibs.security.jwt.*` được dùng **ở cả hai mode** (mode oauth2 dùng chúng cho `UserContextJwtAuthenticationConverter`).
 
+## Phát hành token (issuer)
+
+Module `javalibs-security` chỉ **validate** token; phát hành token (login/refresh/logout) là việc của `javalibs-security-issuer` — dùng cho service đóng vai trò identity/auth-service (ví dụ: gateway xác thực, hoặc chính service nghiệp vụ nếu chưa tách riêng). `SecurityIssuerAutoConfiguration` được đăng ký sẵn trong `javalibs-security-spring-boot-autoconfigure` nhưng có `@ConditionalOnClass(AuthenticationService.class)` — **chỉ kích hoạt khi thêm `javalibs-security-issuer` vào classpath** (dependency `<optional>true</optional>` từ phía autoconfigure).
+
+```xml
+<dependency>
+  <groupId>io.javalibs</groupId>
+  <artifactId>javalibs-security-spring-boot-starter</artifactId>
+</dependency>
+<dependency>
+  <groupId>io.javalibs</groupId>
+  <artifactId>javalibs-security-issuer</artifactId>
+</dependency>
+```
+
+`AuthenticationService` (bean `javalibsAuthenticationService`) chỉ được tạo khi **cả hai** bean SPI `CredentialsStore` và `RefreshTokenStore` đều tồn tại — mặc định lấy từ `javalibs-authz-jpa` (`JpaCredentialsStore`/`JpaRefreshTokenStore`, đọc/ghi bảng `authz_user`/`authz_refresh_token`), hoặc tự cung cấp implementation riêng nếu không dùng `javalibs-authz-jpa`.
+
+### Cấu hình `javalibs.security.issuer.*`
+
+Bind vào `IssuerProperties`:
+
+| Thuộc tính | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `javalibs.security.issuer.enabled` | boolean | `true` | Bật/tắt `SecurityIssuerAutoConfiguration` |
+| `javalibs.security.issuer.private-key` | String (PEM PKCS#8) | — | RSA private key ký token RS256. Bỏ trống → ký HS256 bằng `javalibs.security.jwt.secret` |
+| `javalibs.security.issuer.access-token-ttl` | Duration | `15m` | Thời gian sống access token phát hành |
+| `javalibs.security.issuer.refresh-token-ttl` | Duration | `30d` | Thời gian sống refresh token phát hành |
+| `javalibs.security.issuer.endpoints.enabled` | boolean | `true` | Đăng ký sẵn `AuthEndpoints` (`/auth/login`, `/auth/refresh`, `/auth/logout`) |
+| `javalibs.security.issuer.endpoints.base-path` | String | `/auth` | Base path của 3 endpoint trên |
+
+**HS256 vs RS256**: để trống `private-key` → issuer ký HS256 bằng chung `javalibs.security.jwt.secret` mà mọi service validate token đã cấu hình (đơn giản, phù hợp khi chỉ 1 service phát hành + validate). Đặt `private-key` (PEM PKCS#8) → issuer ký RS256; các service validate token khác đó cấu hình `javalibs.security.jwt.public-key` (PEM X.509 SubjectPublicKeyInfo) tương ứng — chỉ service phát hành giữ private key, phù hợp kiến trúc nhiều service validate, một service phát hành. Không cấu hình cả `jwt.secret` lẫn `issuer.private-key` → khởi động thất bại (`IllegalStateException`, bean `javalibsJwtIssuerConfig`).
+
+### 3 endpoint dựng sẵn
+
+`AuthEndpoints`, base path mặc định `/auth` (đổi qua `endpoints.base-path`):
+
+**`POST {base-path}/login`** — xác thực username/password, phát hành cặp token mới (family mới):
+
+```json
+// Request
+{"username": "alice", "password": "s3cret"}
+
+// Response 200
+{
+  "tokenType": "Bearer",
+  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+  "accessTokenExpiresAt": "2026-07-18T10:15:00Z",
+  "refreshToken": "9f1c3e7b...",
+  "refreshTokenExpiresAt": "2026-08-17T10:00:00Z"
+}
+```
+
+Sai username/password hoặc tài khoản bị `enabled=false` → **401** với message chung "Invalid credentials" (không phân biệt được lý do, chống dò username):
+
+```json
+{"timestamp":"2026-07-18T10:00:00Z","status":401,"code":"ERR_INVALID_CREDENTIALS","message":"Invalid credentials"}
+```
+
+**`POST {base-path}/refresh`** — xoay refresh token, phát hành cặp token mới cùng family:
+
+```json
+// Request
+{"refreshToken": "9f1c3e7b..."}
+
+// Response 200 — cấu trúc giống /login, accessToken và refreshToken đều MỚI
+```
+
+Token không tồn tại/hết hạn/đã bị thu hồi → **401**:
+
+```json
+{"timestamp":"2026-07-18T10:15:00Z","status":401,"code":"ERR_INVALID_REFRESH_TOKEN","message":"Refresh token is invalid"}
+```
+
+**`POST {base-path}/logout`** — thu hồi refresh token (và blacklist access token nếu có `accessTokenId`):
+
+```json
+// Request
+{"refreshToken": "a2d8f61c...", "accessTokenId": "3f9e2b7a-...-jti"}
+```
+
+Response **204 No Content**. `accessTokenId` là claim `jti` của access token hiện tại (client tự giải mã JWT để lấy, hoặc backend của bạn expose sẵn); có thể bỏ trống nếu chỉ muốn thu hồi refresh token.
+
+### Rotation + reuse detection
+
+Mỗi lần `refresh` thành công: refresh token cũ bị đánh dấu `rotated` (revoke + ghi hash token thay thế), token mới được phát hành **trong cùng family** (`familyId` không đổi qua các lần xoay). Nếu một refresh token **đã bị rotate** lại được trình lên lần nữa (dấu hiệu bị đánh cắp và dùng sai thứ tự với bản gốc) → `AuthenticationService.refresh` gọi `RefreshTokenStore.revokeFamily(familyId, now)`, thu hồi **toàn bộ** refresh token còn sống trong family đó, buộc người dùng hợp lệ phải đăng nhập lại. Refresh token bị revoke qua `logout` (không phải do rotate) không kích hoạt reuse detection — chỉ chính token đó bị từ chối.
+
+### Logout + blacklist
+
+`logout` luôn revoke refresh token (idempotent — refresh token không tồn tại/đã revoke không phải lỗi). Muốn access token JWT (vốn stateless) cũng mất hiệu lực **trước khi tự hết hạn**, phải cấu hình blacklist của javalibs-security và truyền `accessTokenId` (`jti`):
+
+```yaml
+javalibs:
+  security:
+    blacklist:
+      mode: redis   # hoặc in-memory cho single-instance; none (mặc định) = access token KHÔNG thể thu hồi qua logout
+```
+
+Không có bean `TokenBlacklist` (mode `none`, mặc định) → `logout` vẫn revoke refresh token nhưng access token đã phát hành tiếp tục hợp lệ tới khi tự hết hạn theo `access-token-ttl`. Xem thêm cơ chế blacklist tại [Thu hồi token — luồng logout-all](#4-thu-hồi-token--luồng-logout-all) và [cách app tự đọc `jti`](#cách-đọc-jti-từ-access-token-để-logout) ngay dưới đây.
+
+#### Cách đọc `jti` từ access token để logout
+
+Access token không tự lộ `accessTokenId` qua response `/login`/`/refresh` (chỉ có `accessToken` dạng JWT nguyên bản) — client backend tự giải mã claim `jti` từ JWT (không cần verify chữ ký để đọc claim, hoặc dùng `UserContextHolder`/`@CurrentUser` phía server rồi lấy `user.attributes().get(TokenBlacklist.TOKEN_ID_ATTRIBUTE)` như mô tả ở mục 4 bên dưới) trước khi gọi `/auth/logout`.
+
+**Nhớ thêm base path vào permit-all**: `/auth/login` và `/auth/refresh` phải gọi được khi **chưa** có token — thêm `endpoints.base-path` (mặc định `/auth`) dạng ant-pattern vào `javalibs.security.permit-all`:
+
+```yaml
+javalibs:
+  security:
+    permit-all:
+      - /actuator/health
+      - /error
+      - /auth/**   # /auth/login, /auth/refresh, /auth/logout
+```
+
+Quên bước này → `/auth/login` bị chặn bởi `JwtAuthenticationFilter` như mọi endpoint khác, trả 401 ngay cả khi credentials đúng.
+
 ## Hướng dẫn sử dụng
 
 ### 1. Thêm dependency
@@ -545,3 +662,4 @@ Mọi bean auto-configure đều có `@ConditionalOnMissingBean` — chỉ cần
 11. **`UserContextHolder` gắn với thread hiện tại** — sang thread khác (`@Async`, thread pool) sẽ mất context; truyền `UserContext` qua tham số, hoặc xem cơ chế propagation MDC bên [javalibs-observability](observability.md) làm hình mẫu (SecurityContext không được tự lan truyền).
 12. **Mode `oauth2-resource-server` không có `JwtDecoder`** (quên `issuer-uri`/`jwk-set-uri` hoặc quên dependency `spring-boot-starter-oauth2-resource-server`) → chain của javalibs không được tạo; nếu Spring Security còn trên classpath, Boot áp chain mặc định của nó — kiểm tra log khởi động khi 401 trả về không đúng format JSON kỳ vọng.
 13. **Clock skew mặc định 30s** — token "hết hạn" vẫn được chấp nhận thêm tối đa 30 giây; đặt `clock-skew: 0s` nếu cần nghiêm ngặt tuyệt đối.
+14. **Quên thêm `/auth/**` vào `permit-all`** (issuer) → `JwtAuthenticationFilter` chặn ngay cả `/auth/login`, trả 401 dù credentials đúng — xem [Phát hành token (issuer)](#phát-hành-token-issuer). `javalibs-security-issuer` phải có mặt tường minh trên classpath (không tự kéo theo bởi starter) để `SecurityIssuerAutoConfiguration` kích hoạt; thiếu một trong hai bean `CredentialsStore`/`RefreshTokenStore` (mặc định do `javalibs-authz-jpa` cung cấp) → bean `AuthenticationService`/`AuthEndpoints` không được tạo, không có lỗi khởi động rõ ràng — kiểm tra log `@ConditionalOnBean` khi `/auth/*` trả 404.

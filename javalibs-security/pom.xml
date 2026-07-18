@@ -26,6 +26,7 @@
     <module>javalibs-security-spring</module>
     <module>javalibs-security-spring-boot-autoconfigure</module>
     <module>javalibs-security-spring-boot-starter</module>
+    <module>javalibs-security-issuer</module>
     <module>javalibs-security-test</module>
   </modules>
 </project>

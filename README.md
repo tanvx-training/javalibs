@@ -30,8 +30,9 @@ Mỗi module phức tạp được phân rã theo chuỗi 4 tầng chuẩn:
 | `javalibs-ddd-core` / `-spring` | AggregateRoot, Entity, ValueObject, DomainEvent, BusinessRule, DomainEventPublisher | `javalibs-ddd-spring` |
 | `javalibs-cqrs-*` | Command/Query/Handler + CommandBus/QueryBus in-memory | `javalibs-cqrs-spring-boot-starter` |
 | `javalibs-web-*` | GlobalExceptionHandler, chuẩn JSON lỗi, PageResponse, request logging, CORS | `javalibs-web-spring-boot-starter` |
-| `javalibs-security-*` | Xác thực JWT stateless, UserContext, `@RequireRole`, `@CurrentUser` | `javalibs-security-spring-boot-starter` |
+| `javalibs-security-*` | Xác thực JWT stateless, UserContext, `@RequireRole`, `@CurrentUser`, phát hành token (`javalibs-security-issuer`: login/refresh/logout, rotation + reuse detection) | `javalibs-security-spring-boot-starter` (+ `javalibs-security-issuer` để phát hành token) |
 | `javalibs-security-test` | `JwtTestFactory` sinh token giả lập cho test | scope `test` |
+| `javalibs-authz-*` | Phân quyền per-resource kiểu YouTrack: Permission → Role → Grant → Scope, `@RequirePermission`, `PermissionChecker`, cache Caffeine, schema JPA mặc định | `javalibs-authz-spring-boot-starter` (+ `javalibs-authz-jpa` cho persistence mặc định) |
 | `javalibs-datahub-*` | EventEnvelope + Kafka publisher, REST client có retry mặc định | `javalibs-datahub-spring-boot-starter` |
 | `javalibs-search-*` | HTTP params → JPA Specifications (dynamic filtering) | `javalibs-search-spring-boot-starter` |
 | `javalibs-observability-*` | Correlation ID, MDC propagation, common metric tags, tracing | `javalibs-observability-spring-boot-starter` |

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.javalibs</groupId>
+    <artifactId>javalibs-authz</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
+  </parent>
+  <artifactId>javalibs-authz-spring-boot-autoconfigure</artifactId>
+  <name>javalibs :: authz :: spring-boot-autoconfigure</name>
+  <description>
+    Spring Boot auto-configuration for javalibs authz: javalibs.authz.* configuration
+    properties, PermissionEvaluator / PermissionChecker / caching beans, Web MVC
+    registration of the @RequirePermission interceptor and the optional JPA wiring.
+  </description>
+  <dependencies>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-authz-spring</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-autoconfigure</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <!-- Optional integrations -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!--
+      Note: this module does NOT depend on javalibs-authz-jpa (nor, transitively,
+      spring-data-jpa / flyway-core / javalibs-security-issuer only needed for the JPA
+      wiring). AuthzJpaAutoConfiguration — the JPA-backed default persistence
+      auto-configuration — now lives in and is self-registered by javalibs-authz-jpa itself,
+      specifically so this module can stay a dependency-free leaf with respect to it: this
+      module is on javalibs-authz-spring-boot-starter's classpath, and
+      javalibs-authz-jpa depends on the starter in test scope (Task 18's E2E IT), so a
+      dependency from here back to javalibs-authz-jpa would create a cyclic reactor
+      reference (autoconfigure -> jpa -> starter -> autoconfigure).
+    -->
+    <!-- Test -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

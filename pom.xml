@@ -24,6 +24,7 @@
     <module>javalibs-cqrs</module>
     <module>javalibs-web</module>
     <module>javalibs-security</module>
+    <module>javalibs-authz</module>
     <module>javalibs-datahub</module>
     <module>javalibs-search</module>
     <module>javalibs-observability</module>
@@ -54,6 +55,7 @@
     <!-- Plugin versions -->
     <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
     <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
+    <maven-failsafe-plugin.version>3.5.3</maven-failsafe-plugin.version>
     <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
     <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
     <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
@@ -155,6 +157,24 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${maven-surefire-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <!--
+            Runs *IT.java integration tests during the integration-test/verify phases
+            (unit tests picked up by surefire, e.g. Testcontainers-backed *IT classes,
+            are bound here so `mvn verify` actually executes them).
+          -->
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>${maven-failsafe-plugin.version}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>integration-test</goal>
+                <goal>verify</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

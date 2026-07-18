@@ -1,0 +1,2 @@
+io.javalibs.authz.autoconfigure.AuthzAutoConfiguration
+io.javalibs.authz.autoconfigure.AuthzWebMvcAutoConfiguration

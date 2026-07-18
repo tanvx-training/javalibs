@@ -1,0 +1,13 @@
+javalibs:
+  security:
+    jwt:
+      secret: e2e-secret-0123456789abcdef-0123456789abcdef
+      issuer: https://e2e.javalibs.io
+    permit-all:
+      - /auth/**
+    blacklist:
+      mode: in-memory
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate

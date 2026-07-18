@@ -57,6 +57,12 @@
       <artifactId>spring-security-oauth2-jose</artifactId>
       <optional>true</optional>
     </dependency>
+    <dependency>
+      <groupId>io.javalibs</groupId>
+      <artifactId>javalibs-security-issuer</artifactId>
+      <version>${project.version}</version>
+      <optional>true</optional>
+    </dependency>
 
     <!-- Test -->
     <dependency>

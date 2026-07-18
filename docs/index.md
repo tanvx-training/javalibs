@@ -34,7 +34,8 @@ Bộ thư viện dùng chung chuẩn hóa cách xây dựng microservices với 
 | Module | Tài liệu | Vai trò |
 |---|---|---|
 | `javalibs-web` | [web.md](modules/web.md) | Chuẩn JSON lỗi, GlobalExceptionHandler, PageResponse, request logging, CORS |
-| `javalibs-security` | [security.md](modules/security.md) | JWT stateless, UserContext, @RequireRole, revocation, OAuth2/OIDC |
+| `javalibs-security` | [security.md](modules/security.md) | JWT stateless, UserContext, @RequireRole, revocation, OAuth2/OIDC, phát hành token (`javalibs-security-issuer`) |
+| `javalibs-authz` | [authz.md](modules/authz.md) | Phân quyền per-resource kiểu YouTrack: Permission → Role → Grant → Scope, `@RequirePermission`, `PermissionChecker` |
 | `javalibs-datahub` | [datahub.md](modules/datahub.md) | EventEnvelope, Kafka publisher, **Transactional Outbox**, idempotent consumer |
 | `javalibs-search` | [search.md](modules/search.md) | HTTP params → JPA Specifications (dynamic filtering) |
 | `javalibs-openapi` | [openapi.md](modules/openapi.md) | Swagger/OpenAPI chuẩn hóa, mã lỗi toàn cục trong docs |
@@ -55,6 +56,8 @@ Bộ thư viện dùng chung chuẩn hóa cách xây dựng microservices với 
 | Xác thực JWT | `javalibs-security-spring-boot-starter` | `javalibs.security.jwt.secret` |
 | Thu hồi token | (như trên) | `javalibs.security.blacklist.mode=redis` |
 | Đăng nhập qua Keycloak | (như trên) + `spring-boot-starter-oauth2-resource-server` | `javalibs.security.mode=oauth2-resource-server` |
+| Tự phát hành token (login/refresh/logout) | (như trên) + `javalibs-security-issuer` | `javalibs.security.issuer.*` + `/auth/**` trong `permit-all` |
+| Phân quyền per-resource (project, tenant...) | `javalibs-authz-spring-boot-starter` + `javalibs-authz-jpa` | Khai báo `PermissionCatalog`, dùng `@RequirePermission`/`PermissionChecker` |
 | Bắn event Kafka an toàn | `javalibs-datahub-spring-boot-starter` | `javalibs.datahub.outbox.enabled=true` + migration |
 | Tìm kiếm động | `javalibs-search-spring-boot-starter` | — |
 | Cache | `javalibs-cache-spring-boot-starter` | `@EnableCaching` (+ starter-data-redis nếu dùng Redis) |
