@@ -169,7 +169,7 @@ public class AuthenticationService {
     private TokenPair issuePairWithRefreshToken(StoredCredentials user, String familyId,
             String refreshToken) {
         TokenIssuer.IssuedToken access = tokenIssuer.issue(
-                user.userId(), user.username(), user.email());
+                user.userId(), user.username(), user.email(), user.roles(), user.extraClaims());
         Instant refreshExpiresAt = clock.instant().plus(config.refreshTokenTtl());
         refreshTokenStore.save(new RefreshTokenRecord(RefreshTokens.hash(refreshToken),
                 user.userId(), familyId, refreshExpiresAt, null, null));

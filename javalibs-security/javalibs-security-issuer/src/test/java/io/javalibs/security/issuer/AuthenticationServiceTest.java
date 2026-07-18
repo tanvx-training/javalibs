@@ -1,6 +1,9 @@
 package io.javalibs.security.issuer;
 
 import io.javalibs.security.InMemoryTokenBlacklist;
+import io.javalibs.security.JwtTokenValidator;
+import io.javalibs.security.JwtValidationConfig;
+import io.javalibs.security.UserContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -9,6 +12,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -175,5 +179,36 @@ class AuthenticationServiceTest {
         assertThat(blacklist.isRevoked("jti-123")).isTrue();
         assertThatExceptionOfType(InvalidRefreshTokenException.class)
                 .isThrownBy(() -> service.refresh(pair.refreshToken()));
+    }
+
+    @Test
+    void loginTokenCarriesUserRoles() {
+        StoredCredentials admin = new StoredCredentials(
+                "u9", "carol", "carol@x.io", hasher.hash("s3cret"), true,
+                Set.of("ADMIN"), java.util.Map.of());
+        CredentialsStore store = new CredentialsStore() {
+            @Override public Optional<StoredCredentials> findByUsername(String u) {
+                return "carol".equals(u) ? Optional.of(admin) : Optional.empty();
+            }
+            @Override public Optional<StoredCredentials> findByUserId(String id) {
+                return "u9".equals(id) ? Optional.of(admin) : Optional.empty();
+            }
+        };
+        JwtIssuerConfig config = JwtIssuerConfig.builder().hmacSecret(SECRET).build();
+        AuthenticationService svc = new AuthenticationService(store, refreshTokens, hasher,
+                new TokenIssuer(config, Clock.systemUTC()), config, Clock.systemUTC(), blacklist);
+
+        TokenPair pair = svc.login("carol", "s3cret");
+
+        UserContext user = new JwtTokenValidator(
+                JwtValidationConfig.builder().hmacSecret(SECRET).build())
+                .validate(pair.accessToken());
+        assertThat(user.roles()).containsExactly("ADMIN");
+
+        TokenPair refreshed = svc.refresh(pair.refreshToken());
+        UserContext refreshedUser = new JwtTokenValidator(
+                JwtValidationConfig.builder().hmacSecret(SECRET).build())
+                .validate(refreshed.accessToken());
+        assertThat(refreshedUser.roles()).containsExactly("ADMIN");
     }
 }
