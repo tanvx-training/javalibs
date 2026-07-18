@@ -2,6 +2,7 @@ package io.javalibs.security.autoconfigure;
 
 import io.javalibs.security.issuer.AuthenticationService;
 import io.javalibs.security.issuer.CredentialsStore;
+import io.javalibs.security.issuer.JwtIssuerConfig;
 import io.javalibs.security.issuer.PasswordHasher;
 import io.javalibs.security.issuer.RefreshTokenRecord;
 import io.javalibs.security.issuer.RefreshTokenStore;
@@ -90,5 +91,22 @@ class SecurityIssuerAutoConfigurationTest {
     void backsOffWhenDisabled() {
         runner.withPropertyValues("javalibs.security.issuer.enabled=false")
                 .run(context -> assertThat(context).doesNotHaveBean(TokenIssuer.class));
+    }
+
+    @Test
+    void jwtIssuerConfigUsesDefaultRolesClaim() {
+        runner.run(context -> {
+            JwtIssuerConfig config = context.getBean(JwtIssuerConfig.class);
+            assertThat(config.rolesClaim()).isEqualTo("roles");
+        });
+    }
+
+    @Test
+    void jwtIssuerConfigHonoursCustomRolesClaim() {
+        runner.withPropertyValues("javalibs.security.jwt.roles-claim=authorities")
+                .run(context -> {
+                    JwtIssuerConfig config = context.getBean(JwtIssuerConfig.class);
+                    assertThat(config.rolesClaim()).isEqualTo("authorities");
+                });
     }
 }

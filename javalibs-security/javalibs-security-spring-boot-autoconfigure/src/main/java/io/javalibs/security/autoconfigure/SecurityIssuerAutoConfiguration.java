@@ -88,6 +88,7 @@ public class SecurityIssuerAutoConfiguration {
                 .audience(jwt.getAudience())
                 .accessTokenTtl(issuer.getAccessTokenTtl())
                 .refreshTokenTtl(issuer.getRefreshTokenTtl())
+                .rolesClaim(jwt.getRolesClaim())
                 .usernameClaim(jwt.getUsernameClaim())
                 .emailClaim(jwt.getEmailClaim())
                 .build();
