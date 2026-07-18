@@ -16,12 +16,14 @@ public record JwtIssuerConfig(
         Duration accessTokenTtl,
         Duration refreshTokenTtl,
         String usernameClaim,
-        String emailClaim) {
+        String emailClaim,
+        String rolesClaim) {
 
     public static final Duration DEFAULT_ACCESS_TOKEN_TTL = Duration.ofMinutes(15);
     public static final Duration DEFAULT_REFRESH_TOKEN_TTL = Duration.ofDays(30);
     public static final String DEFAULT_USERNAME_CLAIM = "preferred_username";
     public static final String DEFAULT_EMAIL_CLAIM = "email";
+    public static final String DEFAULT_ROLES_CLAIM = "roles";
     private static final int MIN_HMAC_SECRET_BYTES = 32;
 
     public JwtIssuerConfig {
@@ -38,6 +40,7 @@ public record JwtIssuerConfig(
         refreshTokenTtl = (refreshTokenTtl == null) ? DEFAULT_REFRESH_TOKEN_TTL : refreshTokenTtl;
         usernameClaim = isBlank(usernameClaim) ? DEFAULT_USERNAME_CLAIM : usernameClaim;
         emailClaim = isBlank(emailClaim) ? DEFAULT_EMAIL_CLAIM : emailClaim;
+        rolesClaim = isBlank(rolesClaim) ? DEFAULT_ROLES_CLAIM : rolesClaim;
     }
 
     private static boolean isBlank(String value) {
@@ -61,6 +64,7 @@ public record JwtIssuerConfig(
         private Duration refreshTokenTtl = DEFAULT_REFRESH_TOKEN_TTL;
         private String usernameClaim = DEFAULT_USERNAME_CLAIM;
         private String emailClaim = DEFAULT_EMAIL_CLAIM;
+        private String rolesClaim = DEFAULT_ROLES_CLAIM;
 
         /**
          * Sets the HMAC secret for HS256 signing.
@@ -151,13 +155,24 @@ public record JwtIssuerConfig(
         }
 
         /**
+         * Sets the claim name for roles (defaults to "roles").
+         *
+         * @param rolesClaim the custom roles claim name
+         * @return this builder
+         */
+        public Builder rolesClaim(String rolesClaim) {
+            this.rolesClaim = rolesClaim;
+            return this;
+        }
+
+        /**
          * Builds the immutable {@link JwtIssuerConfig}.
          *
          * @return a new JwtIssuerConfig instance
          */
         public JwtIssuerConfig build() {
             return new JwtIssuerConfig(hmacSecret, rsaPrivateKeyPem, issuer, audience,
-                    accessTokenTtl, refreshTokenTtl, usernameClaim, emailClaim);
+                    accessTokenTtl, refreshTokenTtl, usernameClaim, emailClaim, rolesClaim);
         }
     }
 }
