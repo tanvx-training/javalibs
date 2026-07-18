@@ -51,10 +51,13 @@ class JpaIssuerStoresIT extends BaseIntegrationTest {
         assertThat(store.findByTokenHash("hash-1")).isPresent();
 
         Instant now = Instant.now();
-        store.markRotated("hash-1", "hash-2", now);
+        assertThat(store.markRotated("hash-1", "hash-2", now)).isTrue();
         RefreshTokenRecord rotated = store.findByTokenHash("hash-1").orElseThrow();
         assertThat(rotated.revokedAt()).isNotNull();
         assertThat(rotated.rotatedToHash()).isEqualTo("hash-2");
+
+        // A concurrent/second attempt to rotate the same already-revoked token must lose.
+        assertThat(store.markRotated("hash-1", "hash-3", now)).isFalse();
 
         store.revokeFamily("fam-1", now);
         assertThat(store.findByTokenHash("hash-2").orElseThrow().revokedAt()).isNotNull();

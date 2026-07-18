@@ -97,6 +97,13 @@ public class AuthenticationService {
      * theft — so the entire family is revoked via
      * {@link RefreshTokenStore#revokeFamily(String, Instant)} before rejecting the call.</p>
      *
+     * <p>Rotation itself is a race: two concurrent calls could both pass the checks above for
+     * the same token before either commits. {@link RefreshTokenStore#markRotated(String,
+     * String, Instant)} is required to be an atomic conditional update, so only one of the two
+     * concurrent calls can win. The loser is treated exactly like reuse of an already-rotated
+     * token — the whole family is revoked and the call is rejected — even though the record
+     * looked un-revoked at the start of this call.</p>
+     *
      * @param refreshToken the raw refresh token presented by the client
      * @return a freshly issued access + refresh token pair in the same family
      * @throws InvalidRefreshTokenException when the token is unknown, expired, revoked, or
@@ -123,7 +130,12 @@ public class AuthenticationService {
             throw new InvalidRefreshTokenException("Refresh token is invalid");
         }
         String newToken = RefreshTokens.generate();
-        refreshTokenStore.markRotated(hash, RefreshTokens.hash(newToken), now);
+        boolean wonRotation = refreshTokenStore.markRotated(hash, RefreshTokens.hash(newToken), now);
+        if (!wonRotation) {
+            // Lost the race to a concurrent rotation of the same token: treat as reuse/theft.
+            refreshTokenStore.revokeFamily(record.familyId(), now);
+            throw new InvalidRefreshTokenException("Refresh token is invalid");
+        }
         return issuePairWithRefreshToken(byId, record.familyId(), newToken);
     }
 

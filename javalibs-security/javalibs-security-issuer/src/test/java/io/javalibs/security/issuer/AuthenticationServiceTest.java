@@ -24,10 +24,16 @@ class AuthenticationServiceTest {
         @Override public Optional<RefreshTokenRecord> findByTokenHash(String tokenHash) {
             return Optional.ofNullable(byHash.get(tokenHash));
         }
-        @Override public void markRotated(String tokenHash, String rotatedToHash, Instant revokedAt) {
+        @Override public boolean markRotated(String tokenHash, String rotatedToHash, Instant revokedAt) {
             RefreshTokenRecord r = byHash.get(tokenHash);
+            if (r == null || r.revokedAt() != null) {
+                // Already revoked/rotated (or unknown): atomically loses the race, same as the
+                // JPA conditional update returning 0 affected rows.
+                return false;
+            }
             byHash.put(tokenHash, new RefreshTokenRecord(r.tokenHash(), r.userId(),
                     r.familyId(), r.expiresAt(), revokedAt, rotatedToHash));
+            return true;
         }
         @Override public void revoke(String tokenHash, Instant revokedAt) {
             RefreshTokenRecord r = byHash.get(tokenHash);
@@ -116,6 +122,44 @@ class AuthenticationServiceTest {
         // token mới cùng family cũng đã bị revoke
         assertThatExceptionOfType(InvalidRefreshTokenException.class)
                 .isThrownBy(() -> service.refresh(second.refreshToken()));
+    }
+
+    @Test
+    void concurrentRotationLosesAndRevokesFamily() {
+        TokenPair first = service.login("alice", "s3cret");
+
+        // Simulate a concurrent refresh call that already won the atomic rotation: the
+        // conditional update reports 0 affected rows even though the record still looked
+        // un-revoked when this call's pre-checks ran.
+        RefreshTokenStore racyStore = new RefreshTokenStore() {
+            @Override public void save(RefreshTokenRecord record) {
+                refreshTokens.save(record);
+            }
+            @Override public Optional<RefreshTokenRecord> findByTokenHash(String tokenHash) {
+                return refreshTokens.findByTokenHash(tokenHash);
+            }
+            @Override public boolean markRotated(String tokenHash, String rotatedToHash,
+                    Instant revokedAt) {
+                return false;
+            }
+            @Override public void revoke(String tokenHash, Instant revokedAt) {
+                refreshTokens.revoke(tokenHash, revokedAt);
+            }
+            @Override public void revokeFamily(String familyId, Instant revokedAt) {
+                refreshTokens.revokeFamily(familyId, revokedAt);
+            }
+        };
+        JwtIssuerConfig config = JwtIssuerConfig.builder().hmacSecret(SECRET).build();
+        AuthenticationService racyService = new AuthenticationService(credentials, racyStore,
+                hasher, new TokenIssuer(config, Clock.systemUTC()), config, Clock.systemUTC(),
+                blacklist);
+
+        assertThatExceptionOfType(InvalidRefreshTokenException.class)
+                .isThrownBy(() -> racyService.refresh(first.refreshToken()));
+
+        RefreshTokenRecord record = refreshTokens.byHash
+                .get(RefreshTokens.hash(first.refreshToken()));
+        assertThat(record.revokedAt()).isNotNull();
     }
 
     @Test

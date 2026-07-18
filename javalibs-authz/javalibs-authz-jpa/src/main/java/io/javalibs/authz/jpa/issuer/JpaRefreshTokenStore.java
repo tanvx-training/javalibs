@@ -50,12 +50,9 @@ public class JpaRefreshTokenStore implements RefreshTokenStore {
 
     @Override
     @Transactional
-    public void markRotated(String tokenHash, String rotatedToHash, Instant revokedAt) {
-        repository.findByTokenHash(tokenHash).ifPresent(entity -> {
-            entity.setRevokedAt(revokedAt);
-            entity.setRotatedToHash(rotatedToHash);
-            repository.save(entity);
-        });
+    public boolean markRotated(String tokenHash, String rotatedToHash, Instant revokedAt) {
+        int affectedRows = repository.markRotated(tokenHash, rotatedToHash, revokedAt);
+        return affectedRows == 1;
     }
 
     @Override

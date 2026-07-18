@@ -29,11 +29,19 @@ public interface RefreshTokenStore {
     /**
      * Marks a token as rotated: revokes it and records the hash of its replacement.
      *
+     * <p>Implementations MUST perform this as a single atomic conditional update — flipping
+     * the row from not-revoked to revoked only when it is still not revoked — so that two
+     * concurrent presentations of the same refresh token cannot both win the rotation. This
+     * is what {@link AuthenticationService#refresh(String)} relies on to detect and break a
+     * race between two concurrent refresh calls for the same token.</p>
+     *
      * @param tokenHash the hash of the token being rotated away from
      * @param rotatedToHash the hash of the newly issued replacement token
      * @param revokedAt the instant the rotation happened
+     * @return {@code true} when this call performed the rotation; {@code false} when the
+     *     token was already revoked or rotated by a concurrent call (or did not exist)
      */
-    void markRotated(String tokenHash, String rotatedToHash, Instant revokedAt);
+    boolean markRotated(String tokenHash, String rotatedToHash, Instant revokedAt);
 
     /**
      * Revokes a single token. Implementations must be a no-op (not throw) when the token

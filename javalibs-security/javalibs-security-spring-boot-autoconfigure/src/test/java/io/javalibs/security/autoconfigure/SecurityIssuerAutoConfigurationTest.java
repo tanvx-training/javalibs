@@ -48,7 +48,9 @@ class SecurityIssuerAutoConfigurationTest {
                 @Override public Optional<RefreshTokenRecord> findByTokenHash(String hash) {
                     return Optional.empty();
                 }
-                @Override public void markRotated(String h, String to, Instant at) { }
+                @Override public boolean markRotated(String h, String to, Instant at) {
+                    return true;
+                }
                 @Override public void revoke(String h, Instant at) { }
                 @Override public void revokeFamily(String familyId, Instant at) { }
             };
