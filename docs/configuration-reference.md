@@ -42,7 +42,7 @@ Quy ước chung:
 | `javalibs.security.jwt.issuer` | String | — | Kiểm tra claim `iss` khi đặt |
 | `javalibs.security.jwt.audience` | String | — | Kiểm tra claim `aud` khi đặt |
 | `javalibs.security.jwt.clock-skew` | Duration | `30s` | Dung sai đồng hồ khi kiểm tra hạn |
-| `javalibs.security.jwt.roles-claim` | String | `roles` | Claim chứa roles (JSON array hoặc chuỗi phân tách bởi `,`/space) |
+| `javalibs.security.jwt.roles-claim` | String | `roles` | Claim chứa roles (JSON array hoặc chuỗi phân tách bởi `,`/space) — **dùng chung** cho cả validate (`JwtTokenValidator`) lẫn phát hành (`TokenIssuer`); token do issuer phát mang roles của user dưới claim này |
 | `javalibs.security.jwt.username-claim` | String | `preferred_username` | |
 | `javalibs.security.jwt.email-claim` | String | `email` | |
 | `javalibs.security.jwt.tenant-claim` | String | `tenant` | |

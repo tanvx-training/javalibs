@@ -318,6 +318,15 @@ Module `javalibs-security` chỉ **validate** token; phát hành token (login/re
 
 `AuthenticationService` (bean `javalibsAuthenticationService`) chỉ được tạo khi **cả hai** bean SPI `CredentialsStore` và `RefreshTokenStore` đều tồn tại — mặc định lấy từ `javalibs-authz-jpa` (`JpaCredentialsStore`/`JpaRefreshTokenStore`, đọc/ghi bảng `authz_user`/`authz_refresh_token`), hoặc tự cung cấp implementation riêng nếu không dùng `javalibs-authz-jpa`.
 
+### Roles & custom claims trong token phát hành
+
+`TokenIssuer` phát access token mang **roles** và **claim tùy ý** lấy từ `StoredCredentials`:
+
+- `StoredCredentials(userId, username, email, passwordHash, enabled, roles, extraClaims)` — `roles` (`Set<String>`) ghi vào claim theo tên `javalibs.security.jwt.roles-claim` (mặc định `roles`, JSON array) khi không rỗng; `extraClaims` (`Map<String,Object>`) ghi các claim còn lại. Constructor 5 tham số cũ vẫn dùng được (roles/claims rỗng).
+- `TokenIssuer.issue(userId, username, email, roles, extraClaims)` là overload mới; overload 3 tham số cũ giữ nguyên (không roles).
+- Claim **reserved** (`sub`, `iss`, `aud`, `exp`, `nbf`, `iat`, `jti`) và các tên claim đã map (username/email/roles) **không thể bị `extraClaims` ghi đè** — chống giả mạo.
+- `AuthenticationService.login`/`refresh` tự truyền `roles`/`extraClaims` của user xuống — service validate token đọc `roles` qua `javalibs.security.jwt.roles-claim` như thường, `@RequireRole` hoạt động ngay.
+
 ### Cấu hình `javalibs.security.issuer.*`
 
 Bind vào `IssuerProperties`:
