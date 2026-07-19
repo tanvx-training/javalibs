@@ -88,6 +88,26 @@ public class AuthenticationService {
     }
 
     /**
+     * Issues a fresh access + refresh token pair (a new token family) for a user who has
+     * already been authenticated by some means <em>other than</em> a password — for example
+     * an OAuth2 / OIDC social login, an enterprise SSO assertion, or an administrator
+     * impersonation flow. No password is checked here: the caller is responsible for having
+     * verified the principal's identity before calling this method.
+     *
+     * <p>The resulting access token carries the same {@code roles} and custom claims as a
+     * password {@link #login(String, String)}, and the refresh token is stored (hashed) so it
+     * participates in normal rotation/reuse-detection and can be revoked via {@link #logout}.
+     *
+     * @param user the stored credentials of the already-authenticated user (its
+     *     {@code passwordHash} is ignored and may be null; {@code enabled} is NOT re-checked —
+     *     validate the account state before calling)
+     * @return a freshly issued access + refresh token pair in a new family
+     */
+    public TokenPair issueFor(StoredCredentials user) {
+        return issuePair(user, UUID.randomUUID().toString());
+    }
+
+    /**
      * Rotates the refresh token, revoking the whole family when reuse is detected.
      *
      * <p>A token that is unknown or expired is rejected outright. A token that is revoked

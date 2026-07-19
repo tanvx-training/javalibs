@@ -211,4 +211,27 @@ class AuthenticationServiceTest {
                 .validate(refreshed.accessToken());
         assertThat(refreshedUser.roles()).containsExactly("ADMIN");
     }
+
+    @Test
+    void issueForMintsTokenPairWithRolesWithoutPassword() {
+        StoredCredentials carol = new StoredCredentials(
+                "u9", "carol", "carol@x.io", hasher.hash("irrelevant"), true,
+                Set.of("ADMIN"), Map.of());
+        JwtIssuerConfig config = JwtIssuerConfig.builder().hmacSecret(SECRET).build();
+        AuthenticationService svc = new AuthenticationService(credentials, refreshTokens, hasher,
+                new TokenIssuer(config, Clock.systemUTC()), config, Clock.systemUTC(), blacklist);
+
+        TokenPair pair = svc.issueFor(carol);
+
+        // access token is valid and carries the user's roles — no password was involved
+        UserContext user = new JwtTokenValidator(
+                JwtValidationConfig.builder().hmacSecret(SECRET).build())
+                .validate(pair.accessToken());
+        assertThat(user.userId()).isEqualTo("u9");
+        assertThat(user.roles()).containsExactly("ADMIN");
+        // refresh token is stored by hash (never the raw value), so it can be rotated/revoked
+        assertThat(refreshTokens.byHash)
+                .containsKey(RefreshTokens.hash(pair.refreshToken()))
+                .doesNotContainKey(pair.refreshToken());
+    }
 }
