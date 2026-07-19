@@ -327,6 +327,16 @@ Module `javalibs-security` chỉ **validate** token; phát hành token (login/re
 - Claim **reserved** (`sub`, `iss`, `aud`, `exp`, `nbf`, `iat`, `jti`) và các tên claim đã map (username/email/roles) **không thể bị `extraClaims` ghi đè** — chống giả mạo.
 - `AuthenticationService.login`/`refresh` tự truyền `roles`/`extraClaims` của user xuống — service validate token đọc `roles` qua `javalibs.security.jwt.roles-claim` như thường, `@RequireRole` hoạt động ngay.
 
+#### Phát hành token cho user đã xác thực (không mật khẩu)
+
+`AuthenticationService.issueFor(StoredCredentials user)` phát cặp access + refresh token
+(family mới) cho một user đã được xác thực bằng **cách khác** không phải mật khẩu — ví dụ
+đăng nhập xã hội OAuth2/OIDC, SSO doanh nghiệp, hoặc admin impersonation. Không kiểm tra mật
+khẩu, không kiểm tra lại `enabled` (bên gọi phải tự xác minh danh tính + trạng thái tài khoản
+trước). Access token mang `roles`/custom claims y như `login`; refresh token được lưu (hash)
+nên vẫn rotation/reuse-detection và thu hồi được qua `logout`. Dùng cho service tự upsert user
+từ nhà cung cấp OAuth rồi phát token của chính mình.
+
 ### Cấu hình `javalibs.security.issuer.*`
 
 Bind vào `IssuerProperties`:
