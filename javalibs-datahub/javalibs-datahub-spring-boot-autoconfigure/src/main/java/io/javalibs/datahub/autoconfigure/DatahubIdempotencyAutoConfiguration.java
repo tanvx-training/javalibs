@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -21,8 +22,15 @@ import javax.sql.DataSource;
  *
  * <p>Requires a {@link DataSource} and the {@code datahub_processed_event}
  * table (reference DDL at {@code META-INF/datahub/outbox-schema-postgres.sql}).
+ *
+ * <p>Ordering after {@code DataSourceAutoConfiguration} is load-bearing: the bean
+ * below is gated on {@code @ConditionalOnBean(DataSource.class)}, and a
+ * {@code @ConditionalOnBean} check only sees bean definitions registered by
+ * auto-configurations that have already run. Without it the condition evaluates
+ * before Boot registers the {@code DataSource}, so idempotency silently does not
+ * wire and duplicate deliveries are processed twice.
  */
-@AutoConfiguration
+@AutoConfiguration(after = DataSourceAutoConfiguration.class)
 @ConditionalOnClass(JdbcOperations.class)
 @ConditionalOnProperty(prefix = "javalibs.datahub.idempotency", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(DatahubProperties.class)

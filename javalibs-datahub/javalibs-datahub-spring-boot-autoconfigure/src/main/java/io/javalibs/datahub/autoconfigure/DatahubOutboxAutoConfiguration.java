@@ -13,6 +13,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -31,8 +33,25 @@ import javax.sql.DataSource;
  * {@code META-INF/datahub/outbox-schema-postgres.sql}). The relay publishes
  * through whatever {@link EventPublisher} bean is active (Kafka in production,
  * the logging fallback locally).
+ *
+ * <p>The {@code after}/{@code afterName} ordering is load-bearing, not cosmetic:
+ * the beans below are gated on {@code @ConditionalOnBean(DataSource.class)} and
+ * {@code @ConditionalOnBean(PlatformTransactionManager.class)}, and a
+ * {@code @ConditionalOnBean} check only sees bean definitions registered by
+ * auto-configurations that have already run. Without this ordering the conditions
+ * evaluate before Boot registers the {@code DataSource} and transaction manager,
+ * so the outbox silently does not wire — the application starts healthy and drops
+ * every event instead. {@code HibernateJpaAutoConfiguration} is referenced by name
+ * because JPA is optional on the classpath.
  */
-@AutoConfiguration(after = {DatahubKafkaAutoConfiguration.class, DatahubFallbackAutoConfiguration.class})
+@AutoConfiguration(
+    after = {
+        DatahubKafkaAutoConfiguration.class,
+        DatahubFallbackAutoConfiguration.class,
+        DataSourceAutoConfiguration.class,
+        DataSourceTransactionManagerAutoConfiguration.class
+    },
+    afterName = "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration")
 @ConditionalOnClass({JdbcOperations.class, ObjectMapper.class})
 @ConditionalOnProperty(prefix = "javalibs.datahub.outbox", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(DatahubProperties.class)
