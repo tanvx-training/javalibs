@@ -25,7 +25,7 @@ class MinioObjectStorageIT {
     @BeforeAll
     static void start() {
         MINIO.start();
-        storage = new MinioObjectStorage(MINIO.getS3URL(), MINIO.getS3URL(),
+        storage = new MinioObjectStorage(MINIO.getS3URL(), MINIO.getS3URL(), "us-east-1",
                 MINIO.getUserName(), MINIO.getPassword(), "it-bucket",
                 Duration.ofMinutes(10), Duration.ofMinutes(5));
         storage.ensureBucket();
@@ -92,47 +92,35 @@ class MinioObjectStorageIT {
     }
 
     /**
-     * Locks down the dual-client design itself: presigning must go through the
-     * {@code signer} client (built from {@code externalEndpoint}), never the
-     * {@code client} used for server-side ops. A separate instance is built here
-     * with a real internal endpoint but a fake, unreachable external endpoint —
-     * presigning is pure local SigV4 computation, so no request ever needs to
-     * reach {@code public.example}. If {@code presignPut}/{@code presignGet} were
-     * ever changed to sign against {@code client} instead of {@code signer}, the
-     * resulting URL would point at the container's real host:port and this
-     * assertion would fail even though every other IT here would stay green.
-     */
-    /**
-     * Locks down the dual-client design itself: presigning must go through the
-     * {@code signer} client (built from {@code externalEndpoint}), never the
-     * {@code client} used for server-side ops. Presigning is not purely local —
-     * the MinIO SDK performs a one-time region lookup against the endpoint the
-     * client was built with, so a genuinely unreachable external host (e.g.
-     * {@code http://public.example:9999}) makes {@code presignPut}/{@code
-     * presignGet} throw {@link StorageException} rather than silently prove
-     * anything. Instead this test builds a second {@code MinioObjectStorage}
-     * whose {@code endpoint} is {@code localhost:<port>} but whose {@code
-     * externalEndpoint} is the same container reached via the textually
-     * distinct, equally routable alias {@code 127.0.0.1:<port>}. If {@code
-     * presignPut}/{@code presignGet} were ever changed to sign against {@code
-     * client} (the internal endpoint) instead of {@code signer}, the resulting
-     * URL's host would be {@code localhost}, not {@code 127.0.0.1}, and this
-     * assertion would fail even though every other IT here stays green.
+     * Locks down both the dual-client design and the "signer never connects"
+     * guarantee together. A second {@code MinioObjectStorage} is built here with
+     * a real internal {@code endpoint} but a genuinely unreachable
+     * {@code externalEndpoint} ({@code public.example} does not resolve).
+     * Presigning must still succeed without any network error: with an explicit
+     * {@code region}, {@code getPresignedObjectUrl} is pure local SigV4
+     * computation and never has to reach the external endpoint to look up a
+     * region. Two things break this test if the implementation regresses:
+     * <ul>
+     *   <li>if {@code region} were dropped again, the SDK would try a live
+     *       {@code GetBucketLocation} call against {@code public.example} and
+     *       {@code presignPut}/{@code presignGet} would throw
+     *       {@link StorageException} wrapping an {@code UnknownHostException};</li>
+     *   <li>if presigning were ever changed to sign against {@code client}
+     *       (the internal endpoint) instead of {@code signer}, the resulting
+     *       URL would point at the container's real reachable host:port instead
+     *       of {@code public.example:9999}.</li>
+     * </ul>
      */
     @Test
     void presignUrlsAreSignedAgainstExternalEndpointNotInternal() {
-        URI internal = URI.create(MINIO.getS3URL());
-        String externalUrl = internal.getScheme() + "://127.0.0.1:" + internal.getPort();
-        MinioObjectStorage externalFacing = new MinioObjectStorage(MINIO.getS3URL(), externalUrl,
-                MINIO.getUserName(), MINIO.getPassword(), "it-bucket",
+        MinioObjectStorage externalFacing = new MinioObjectStorage(MINIO.getS3URL(), "http://public.example:9999",
+                "us-east-1", MINIO.getUserName(), MINIO.getPassword(), "it-bucket",
                 Duration.ofMinutes(10), Duration.ofMinutes(5));
 
         String putUrl = externalFacing.presignPut("external/put.txt");
         String getUrl = externalFacing.presignGet("external/get.txt", ContentDispositions.attachment("f.txt"));
 
-        assertThat(URI.create(putUrl).getHost()).isEqualTo("127.0.0.1");
-        assertThat(URI.create(getUrl).getHost()).isEqualTo("127.0.0.1");
-        assertThat(putUrl).contains("X-Amz-Signature");
-        assertThat(getUrl).contains("X-Amz-Signature");
+        assertThat(putUrl).startsWith("http://public.example:9999/").contains("X-Amz-Signature");
+        assertThat(getUrl).startsWith("http://public.example:9999/").contains("X-Amz-Signature");
     }
 }

@@ -26,7 +26,7 @@ public class JavalibsStorageAutoConfiguration {
     public ObjectStorage javalibsObjectStorage(JavalibsStorageProperties p) {
         String external = (p.getExternalEndpoint() == null || p.getExternalEndpoint().isBlank())
                 ? p.getEndpoint() : p.getExternalEndpoint();
-        MinioObjectStorage storage = new MinioObjectStorage(p.getEndpoint(), external,
+        MinioObjectStorage storage = new MinioObjectStorage(p.getEndpoint(), external, p.getRegion(),
                 p.getAccessKey(), p.getSecretKey(), p.getBucket(),
                 p.getPresignPutExpiry(), p.getPresignGetExpiry());
         if (p.isEnsureBucket()) {

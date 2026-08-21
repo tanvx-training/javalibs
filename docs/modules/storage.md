@@ -54,7 +54,9 @@ Implementation MinIO của `ObjectStorage`, giữ **hai `MinioClient`** thay vì
 
 **Vì sao cần hai client, không dùng chung một endpoint:** chữ ký SigV4 của presigned URL gắn chặt với host trong URL đó — client MinIO ký URL bằng chính endpoint nó được khởi tạo. Trong Docker/K8s, service gọi MinIO qua tên nội bộ (vd `http://minio:9000`), nhưng nếu presigned URL cũng ký với host đó thì browser (chạy ngoài mạng nội bộ) sẽ nhận về một URL trỏ tới `minio:9000` — không resolve được, hoặc nếu resolve được thì domain SigV4 vẫn không khớp origin browser gọi. `externalEndpoint` cho phép presigned URL ký đúng origin browser gọi được (vd `https://storage.example.com` hoặc `http://localhost:9000` khi dev local), trong khi thao tác server-side vẫn đi qua endpoint nội bộ nhanh hơn và không phụ thuộc DNS public. Khi không đặt `externalEndpoint`, nó fallback về `endpoint` — đúng cho môi trường single-host (dev local, test).
 
-Constructor: `MinioObjectStorage(String endpoint, String externalEndpoint, String accessKey, String secretKey, String bucket, Duration putExpiry, Duration getExpiry)`. `ensureBucket()` tạo bucket nếu chưa có — an toàn gọi lại nhiều lần, nhưng **mở một kết nối tới MinIO** nên không gọi ngầm định trong constructor.
+**Vì sao `region` là tham số bắt buộc, không có giá trị `null`:** khi `MinioClient` được dựng thiếu `region`, SDK MinIO tra cứu region **lười** — chỉ khi có thao tác cần ký request, kể cả `getPresignedObjectUrl` — bằng một lệnh `GetBucketLocation` gọi thật tới endpoint của **chính client đó**. Với `signer`, endpoint là `externalEndpoint` (origin browser gọi được), thường **không** reachable từ nơi code này chạy (vd container backend gọi ra `http://localhost:5173` — chỉ đúng trên máy dev). Thiếu `region`, lần gọi `presignPut`/`presignGet` đầu tiên sẽ ném lỗi mạng thật (`UnknownHostException`/timeout) dù về bản chất ký presigned URL là tính toán cục bộ, không cần server phản hồi. Đặt `region` tường minh loại bỏ hoàn toàn bước tra cứu đó — `signer` không bao giờ mở kết nối. Giá trị mặc định `us-east-1` khớp region mặc định của MinIO server.
+
+Constructor: `MinioObjectStorage(String endpoint, String externalEndpoint, String region, String accessKey, String secretKey, String bucket, Duration putExpiry, Duration getExpiry)`. `ensureBucket()` tạo bucket nếu chưa có — an toàn gọi lại nhiều lần, nhưng **mở một kết nối tới MinIO** nên không gọi ngầm định trong constructor.
 
 ### `ContentDispositions` (`javalibs-storage-core`)
 
@@ -78,7 +80,7 @@ Dùng làm tham số `contentDisposition` của `presignGet` — MinIO trả hea
 Điểm mấu chốt:
 
 - **Opt-in mặc định**: `javalibs.storage.enabled` mặc định `false` vì tính năng cần MinIO đang chạy — khác với các module "nhẹ" (cache, web...) mặc định bật. Đúng quy ước chung của platform cho tính năng cần hạ tầng.
-- **`ensure-bucket` mặc định `false`**: dựng bean `javalibsObjectStorage` **không** mở kết nối nào (constructor `MinioClient.builder()...build()` không gọi network); chỉ khi `ensure-bucket=true` thì auto-configuration mới gọi `storage.ensureBucket()` lúc dựng bean, mở một kết nối kiểm tra/tạo bucket ngay lúc khởi động context.
+- **`ensure-bucket` mặc định `false`**: dựng bean `javalibsObjectStorage` **không** mở kết nối nào (constructor `MinioClient.builder()...build()` không gọi network, và với `region` luôn được set — mặc định `us-east-1` — thì cả lần gọi `presignPut`/`presignGet` đầu tiên cũng không mở kết nối); chỉ khi `ensure-bucket=true` thì auto-configuration mới gọi `storage.ensureBucket()` lúc dựng bean, mở một kết nối kiểm tra/tạo bucket ngay lúc khởi động context.
 - **`external-endpoint` rỗng → fallback `endpoint`**: xử lý ngay trong `javalibsObjectStorage()`, không cần cấu hình gì thêm cho môi trường single-host.
 - MinIO đến transitively qua `javalibs-storage-core` (không có dependency `minio` trực tiếp trong `-autoconfigure`), nhưng vẫn guard bằng `@ConditionalOnClass(MinioClient.class)` — đúng nguyên tắc "autoconfigure không giả định thư viện thứ ba luôn có mặt".
 
@@ -91,6 +93,7 @@ Toàn bộ property bind vào `JavalibsStorageProperties` (`javalibs.storage.*`)
 | `javalibs.storage.enabled` | boolean | `false` | Bật auto-configuration (opt-in vì cần MinIO đang chạy) |
 | `javalibs.storage.endpoint` | String | — | Endpoint nội bộ cho thao tác server-side |
 | `javalibs.storage.external-endpoint` | String | *(rỗng → dùng `endpoint`)* | Endpoint public để ký presigned URL |
+| `javalibs.storage.region` | String | `us-east-1` | Region cả 2 client dùng để ký — bắt buộc tường minh để presign không rơi vào tra cứu region qua mạng tới `external-endpoint` |
 | `javalibs.storage.access-key` | String | — | Access key |
 | `javalibs.storage.secret-key` | String | — | Secret key |
 | `javalibs.storage.bucket` | String | — | Bucket dùng cho mọi thao tác |
@@ -118,6 +121,7 @@ javalibs:
     enabled: true
     endpoint: http://minio:9000                # container nội bộ
     external-endpoint: http://localhost:5173    # origin browser thực sự gọi để presign
+    region: us-east-1                           # region MinIO server; đổi nếu cluster cấu hình khác
     access-key: ${MINIO_ACCESS_KEY}
     secret-key: ${MINIO_SECRET_KEY}
     bucket: orders-service
@@ -155,12 +159,13 @@ public class EvidenceService {
 ## Testing
 
 - **Auto-configuration** (`JavalibsStorageAutoConfigurationTest`): `ApplicationContextRunner` — 4 hướng: inactive mặc định, active khi bật đủ property (không mở kết nối vì `ensure-bucket` mặc định `false`), backs off khi có bean `ObjectStorage` của người dùng, inactive khi `MinioClient` không có trên classpath (`FilteredClassLoader`).
-- **`MinioObjectStorage`** (`MinioObjectStorageIT`, `javalibs-storage-core`): Testcontainers MinIO thật — round-trip put/stat/get/delete, `stat` rỗng + `get` ném `StorageException` cho key thiếu, `delete` key thiếu là no-op, presigned PUT/GET dùng `HttpClient` thật gọi thẳng URL trả về, và một test khoá riêng thiết kế 2-client: presign phải ký bằng `externalEndpoint`, không phải `endpoint` nội bộ — đổi nhầm client ký sẽ làm test này đỏ dù mọi IT khác vẫn xanh.
+- **`MinioObjectStorage`** (`MinioObjectStorageIT`, `javalibs-storage-core`): Testcontainers MinIO thật — round-trip put/stat/get/delete, `stat` rỗng + `get` ném `StorageException` cho key thiếu, `delete` key thiếu là no-op, presigned PUT/GET dùng `HttpClient` thật gọi thẳng URL trả về, và một test khoá cả 2 việc cùng lúc: dựng `MinioObjectStorage` với `externalEndpoint` **không tồn tại thật** (`http://public.example:9999`) rồi assert `presignPut`/`presignGet` vẫn trả URL trỏ đúng host đó mà **không ném lỗi mạng nào** — vừa khoá "presign phải ký bằng `externalEndpoint`, không phải `endpoint` nội bộ" (nếu đổi nhầm client ký, URL sẽ trỏ host nội bộ reachable thay vì `public.example`), vừa khoá "presign không bao giờ mở kết nối" (nếu quên set `region`, SDK sẽ thật sự gọi mạng tới `public.example` và ném `UnknownHostException`).
 - **`ContentDispositionsTest`**: Java thuần — unit test trực tiếp.
 
 ## Lưu ý & bẫy thường gặp
 
 - **Quên đặt `external-endpoint` trong môi trường nhiều host**: presigned URL sẽ ký bằng `endpoint` nội bộ — browser không gọi được (DNS không resolve hoặc chữ ký SigV4 sai host). Chỉ bỏ trống khi service và browser cùng thấy một host (dev local, single-host demo).
+- **Thiếu `region` làm mọi presign 500 khi `external-endpoint` không reachable từ backend** (bug thật, bắt được ở vòng kiểm chứng E2E compose đa container): nếu `MinioClient` được dựng không set `region`, SDK MinIO tra cứu region qua một lệnh `GetBucketLocation` gọi thật lúc ký presigned URL lần đầu — tới chính endpoint client đó được dựng, tức `external-endpoint` cho `signer`. `external-endpoint` thường trỏ origin browser gọi được (vd `http://localhost:5173`) nhưng **không** reachable từ container backend, nên lệnh tra cứu đó timeout/`UnknownHostException`, mọi `presignPut`/`presignGet` (upload-init evidence/document/template...) trả lỗi. Module đã tự set `region` mặc định `us-east-1` cho cả 2 client nên hành vi đúng ngay từ đầu; chỉ cần đổi `javalibs.storage.region` khi cluster MinIO/S3 thật sự cấu hình region khác.
 - **`ensure-bucket=true` mở kết nối lúc khởi động context** — nếu MinIO chưa sẵn sàng khi service start (thứ tự khởi động trong docker-compose/K8s), context sẽ fail refresh. Cân nhắc `ensure-bucket=false` + tạo bucket bằng IaC/migration riêng cho production.
 - **`get()` ném exception cho key thiếu, `stat()` thì không** — dùng `stat()` trước nếu chỉ cần kiểm tra tồn tại, tránh dựa vào catch exception cho luồng bình thường.
 - **Presigned URL có hạn cố định lúc dựng bean** (`presign-put-expiry`/`presign-get-expiry`) — không đổi được per-request; cần hạn khác nhau theo tình huống thì tự dựng thêm `MinioObjectStorage` khác hoặc gọi thẳng `MinioClient`.

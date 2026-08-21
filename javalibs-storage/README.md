@@ -19,6 +19,7 @@ Không có tầng `-spring` riêng: `MinioObjectStorage` đã đủ nhỏ để 
 | `javalibs.storage.enabled` | `false` | Bật auto-configuration (opt-in vì cần MinIO đang chạy) |
 | `javalibs.storage.endpoint` | — | Endpoint nội bộ cho thao tác server-side |
 | `javalibs.storage.external-endpoint` | *(rỗng → dùng `endpoint`)* | Endpoint public để ký presigned URL |
+| `javalibs.storage.region` | `us-east-1` | Region ký cho cả 2 client — bắt buộc đặt tường minh để presign không rơi vào tra cứu region qua mạng tới `external-endpoint` (xem Javadoc `MinioObjectStorage`) |
 | `javalibs.storage.access-key` / `.secret-key` | — | Credentials |
 | `javalibs.storage.bucket` | — | Bucket dùng cho mọi thao tác |
 | `javalibs.storage.ensure-bucket` | `false` | Tự tạo bucket lúc khởi động nếu chưa có |

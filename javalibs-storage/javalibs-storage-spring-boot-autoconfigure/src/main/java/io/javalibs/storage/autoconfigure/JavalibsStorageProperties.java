@@ -20,6 +20,13 @@ public class JavalibsStorageProperties {
      */
     private String externalEndpoint;
 
+    /**
+     * Region both MinIO clients sign with. Required so presigning never falls back to a live
+     * region lookup against {@link #externalEndpoint} (see {@code MinioObjectStorage}'s class
+     * Javadoc) — defaults to {@code us-east-1}, MinIO's own default deployment region.
+     */
+    private String region = "us-east-1";
+
     /** Access key of the storage credentials. */
     private String accessKey;
 
@@ -60,6 +67,14 @@ public class JavalibsStorageProperties {
 
     public void setExternalEndpoint(String externalEndpoint) {
         this.externalEndpoint = externalEndpoint;
+    }
+
+    public String getRegion() {
+        return region;
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
     }
 
     public String getAccessKey() {
