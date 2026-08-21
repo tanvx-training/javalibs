@@ -38,7 +38,7 @@ public class RequestLoggingAutoConfiguration {
      * @return the filter registration
      */
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(RequestLoggingFilter.class)
     public FilterRegistrationBean<RequestLoggingFilter> javalibsRequestLoggingFilter(WebProperties properties) {
         WebProperties.Logging logging = properties.logging();
         RequestLoggingFilter filter = new RequestLoggingFilter(

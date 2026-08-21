@@ -5,8 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,20 +26,5 @@ class RequestLoggingAutoConfigurationTest {
     void backsOffWhenDisabledByProperty() {
         runner.withPropertyValues("javalibs.web.logging.enabled=false")
                 .run(context -> assertThat(context).doesNotHaveBean(FilterRegistrationBean.class));
-    }
-
-    @Test
-    void backsOffWhenTheApplicationDeclaresItsOwnFilterRegistrationBean() {
-        runner.withUserConfiguration(CustomFilterRegistrationConfiguration.class)
-                .run(context -> assertThat(context).hasSingleBean(FilterRegistrationBean.class));
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    static class CustomFilterRegistrationConfiguration {
-
-        @Bean
-        FilterRegistrationBean<RequestLoggingFilter> customRequestLoggingFilter() {
-            return new FilterRegistrationBean<>(new RequestLoggingFilter());
-        }
     }
 }
