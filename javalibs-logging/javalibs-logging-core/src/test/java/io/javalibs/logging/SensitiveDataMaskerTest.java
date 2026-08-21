@@ -51,4 +51,11 @@ class SensitiveDataMaskerTest {
 
         assertThat(off.maskFormEncoded("password=hunter2")).isEqualTo("password=hunter2");
     }
+
+    @Test
+    void treatsABlankMaskAsAbsentAndFallsBackToTheDefault() {
+        SensitiveDataMasker blank = new SensitiveDataMasker(SensitiveKeys.defaults(), "   ");
+
+        assertThat(blank.maskFormEncoded("password=hunter2")).isEqualTo("password=********");
+    }
 }

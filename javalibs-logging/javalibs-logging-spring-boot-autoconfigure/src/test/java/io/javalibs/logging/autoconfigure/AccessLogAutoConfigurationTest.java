@@ -1,7 +1,14 @@
 package io.javalibs.logging.autoconfigure;
 
+import java.io.IOException;
+
 import io.javalibs.logging.spring.HttpAccessLogFilter;
 import io.javalibs.logging.spring.PrincipalResolver;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -70,12 +77,51 @@ class AccessLogAutoConfigurationTest {
     }
 
     @Test
+    void normalizesANegativeConfiguredStacktraceMaxLength() {
+        webRunner.withPropertyValues("javalibs.logging.stacktrace.max-length=-1").run(context -> {
+            LoggingProperties properties = context.getBean(LoggingProperties.class);
+
+            assertThat(properties.stacktrace().maxLength()).isEqualTo(4096);
+        });
+    }
+
+    @Test
+    void theStacktraceRecordItselfNormalizesANegativeMaxLength() {
+        assertThat(new LoggingProperties.Stacktrace(true, -5).maxLength()).isEqualTo(4096);
+    }
+
+    @Test
     void registersTheFilterLateSoItSeesTheFinalStatus() {
         webRunner.run(context -> {
             FilterRegistrationBean<?> registration = context.getBean(FilterRegistrationBean.class);
 
             assertThat(registration.getFilter()).isInstanceOf(HttpAccessLogFilter.class);
             assertThat(registration.getOrder()).isEqualTo(Integer.MAX_VALUE - 10);
+        });
+    }
+
+    @Test
+    void backsOffWhenTheApplicationRegistersItsOwnAccessLogFilterRegistration() {
+        webRunner.withUserConfiguration(CustomFilterRegistrationConfiguration.class).run(context -> {
+            assertThat(context).hasSingleBean(FilterRegistrationBean.class);
+            assertThat(context.getBean(FilterRegistrationBean.class))
+                    .isSameAs(context.getBean(CustomFilterRegistrationConfiguration.class).registration);
+        });
+    }
+
+    @Test
+    void doesNotBackOffForAFilterRegistrationOfAnUnrelatedFilterType() {
+        webRunner.withUserConfiguration(UnrelatedFilterRegistrationConfiguration.class).run(context -> {
+            // Two registrations coexist: javalibs' own access log filter, plus the
+            // application's unrelated one. Only a FilterRegistrationBean<HttpAccessLogFilter>
+            // should ever make javalibs back off — a FilterRegistrationBean of some other
+            // filter type must not, or @ConditionalOnMissingBean would be matching on the raw
+            // FilterRegistrationBean type instead of on its generic parameter.
+            assertThat(context.getBeansOfType(FilterRegistrationBean.class)).hasSize(2);
+            assertThat(context.getBeansOfType(FilterRegistrationBean.class).values())
+                    .extracting(FilterRegistrationBean::getFilter)
+                    .hasAtLeastOneElementOfType(HttpAccessLogFilter.class)
+                    .hasAtLeastOneElementOfType(SomeOtherFilter.class);
         });
     }
 
@@ -87,6 +133,36 @@ class AccessLogAutoConfigurationTest {
         @Bean
         PrincipalResolver principalResolver() {
             return this.resolver;
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class CustomFilterRegistrationConfiguration {
+
+        private final FilterRegistrationBean<HttpAccessLogFilter> registration =
+                new FilterRegistrationBean<>(new HttpAccessLogFilter(null, null, null));
+
+        @Bean
+        FilterRegistrationBean<HttpAccessLogFilter> myAccessLogFilter() {
+            return this.registration;
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class UnrelatedFilterRegistrationConfiguration {
+
+        @Bean
+        FilterRegistrationBean<SomeOtherFilter> someOtherFilter() {
+            return new FilterRegistrationBean<>(new SomeOtherFilter());
+        }
+    }
+
+    static class SomeOtherFilter implements Filter {
+
+        @Override
+        public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+                throws IOException, ServletException {
+            chain.doFilter(request, response);
         }
     }
 }

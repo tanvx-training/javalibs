@@ -45,12 +45,23 @@ public class AccessLogAutoConfiguration {
     /**
      * Registers the access log filter configured from {@code javalibs.logging.*}.
      *
+     * <p>{@code @ConditionalOnMissingBean} is left bare rather than given
+     * {@code HttpAccessLogFilter.class}: that plain filter type is never itself
+     * exposed as a bean — it only ever exists wrapped inside the
+     * {@link FilterRegistrationBean} returned here — so a condition checking for
+     * it would never find a match and would never back off. Leaving the
+     * annotation bare makes Spring Boot infer the candidate type from this
+     * method's return type <em>including its generic parameter</em>, so it
+     * matches another {@code FilterRegistrationBean<HttpAccessLogFilter>} the
+     * application declares, without also backing off for an unrelated
+     * {@code FilterRegistrationBean<SomeOtherFilter>}.</p>
+     *
      * @param properties        the bound javalibs logging properties
      * @param principalResolver the resolver supplying {@code user_id}
      * @return the filter registration
      */
     @Bean
-    @ConditionalOnMissingBean(HttpAccessLogFilter.class)
+    @ConditionalOnMissingBean
     public FilterRegistrationBean<HttpAccessLogFilter> javalibsHttpAccessLogFilter(
             LoggingProperties properties, PrincipalResolver principalResolver) {
         LoggingProperties.Access access = properties.access();

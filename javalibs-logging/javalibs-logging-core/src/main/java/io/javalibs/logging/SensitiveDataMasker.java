@@ -25,12 +25,12 @@ public final class SensitiveDataMasker {
      *
      * @param keys the sensitive key policy; {@code null} falls back to
      *             {@link SensitiveKeys#defaults()}
-     * @param mask the replacement text; {@code null} or empty falls back to
+     * @param mask the replacement text; {@code null} or blank falls back to
      *             {@link #DEFAULT_MASK}
      */
     public SensitiveDataMasker(SensitiveKeys keys, String mask) {
         this.keys = (keys != null) ? keys : SensitiveKeys.defaults();
-        this.mask = (mask != null && !mask.isEmpty()) ? mask : DEFAULT_MASK;
+        this.mask = (mask != null && !mask.isBlank()) ? mask : DEFAULT_MASK;
     }
 
     /**

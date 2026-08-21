@@ -79,11 +79,22 @@ public record LoggingProperties(
      * Stack trace rendering inside {@code errors[]}.
      *
      * @param enabled   whether stack traces are written (default {@code true})
-     * @param maxLength cap on characters per stack trace (default {@code 4096})
+     * @param maxLength cap on characters per stack trace (default {@code 4096});
+     *                  a negative configured value falls back to the default
+     *                  rather than being bound verbatim, matching
+     *                  {@code JavalibsLogFormatSettings}'s own guard against a
+     *                  negative length reaching {@code String#substring}
      */
     public record Stacktrace(
             @DefaultValue("true") boolean enabled,
             @DefaultValue("4096") int maxLength) {
+
+        /** Canonical constructor normalizing a negative configured length. */
+        public Stacktrace {
+            if (maxLength < 0) {
+                maxLength = 4096;
+            }
+        }
     }
 
     /**
