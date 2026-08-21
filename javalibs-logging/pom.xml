@@ -23,5 +23,6 @@
 
   <modules>
     <module>javalibs-logging-core</module>
+    <module>javalibs-logging-logback</module>
   </modules>
 </project>
