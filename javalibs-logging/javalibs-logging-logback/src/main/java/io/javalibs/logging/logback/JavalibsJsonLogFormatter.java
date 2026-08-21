@@ -173,6 +173,9 @@ public class JavalibsJsonLogFormatter extends JsonWriterStructuredLogFormatter<I
     }
 
     private static String stackTrace(IThrowableProxy throwable, int maxLength) {
+        // Second line of defence: even if a negative length ever reached this
+        // method, substring(0, maxLength) below must never throw.
+        maxLength = Math.max(0, maxLength);
         StackTraceElementProxy[] frames = throwable.getStackTraceElementProxyArray();
         if (frames == null || frames.length == 0) {
             return "";

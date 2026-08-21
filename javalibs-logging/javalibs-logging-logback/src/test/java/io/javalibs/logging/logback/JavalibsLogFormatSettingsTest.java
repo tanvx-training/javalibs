@@ -101,6 +101,14 @@ class JavalibsLogFormatSettingsTest {
     }
 
     @Test
+    void negativeStacktraceMaxLengthFallsBackToTheDefault() {
+        JavalibsLogFormatSettings settings = JavalibsLogFormatSettings.from(
+                environmentWith(Map.of("javalibs.logging.stacktrace.max-length", "-1")));
+
+        assertThat(settings.stacktraceMaxLength()).isEqualTo(4096);
+    }
+
+    @Test
     void metadataIsUnmodifiable() {
         JavalibsLogFormatSettings settings = JavalibsLogFormatSettings.from(
                 environmentWith(Map.of("javalibs.logging.environment", "production")));

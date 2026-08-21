@@ -10,6 +10,7 @@ import io.javalibs.logging.LogFields;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 class JavalibsJsonLogFormatterErrorsTest {
 
@@ -85,6 +86,36 @@ class JavalibsJsonLogFormatterErrorsTest {
                 .parse(shortTraces.format(event)).get(LogFields.ERRORS);
 
         assertThat((String) errors.get(0).get(LogFields.ERROR_STACKTRACE)).hasSizeLessThanOrEqualTo(40);
+    }
+
+    @Test
+    void negativeMaxLengthDoesNotThrowAndKeepsAStacktrace() {
+        JavalibsJsonLogFormatter negativeMaxLength = new JavalibsJsonLogFormatter(
+                LogEvents.settings(Map.of("javalibs.logging.stacktrace.max-length", "-1")));
+        LoggingEvent event = LogEvents.event(Level.ERROR, "boom");
+        event.setThrowableProxy(new ThrowableProxy(new IllegalStateException("nope")));
+
+        assertThatCode(() -> negativeMaxLength.format(event)).doesNotThrowAnyException();
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> errors = (List<Map<String, Object>>) LogEvents
+                .parse(negativeMaxLength.format(event)).get(LogFields.ERRORS);
+
+        assertThat((String) errors.get(0).get(LogFields.ERROR_STACKTRACE)).isNotEmpty();
+    }
+
+    @Test
+    void capsTheCauseChainAtTenEntries() {
+        Throwable current = new IllegalStateException("level-0");
+        for (int level = 1; level < 15; level++) {
+            current = new IllegalStateException("level-" + level, current);
+        }
+        LoggingEvent event = LogEvents.event(Level.ERROR, "boom");
+        event.setThrowableProxy(new ThrowableProxy(current));
+
+        List<Map<String, Object>> errors = errorsOf(event);
+
+        assertThat(errors).hasSize(10);
     }
 
     @Test
