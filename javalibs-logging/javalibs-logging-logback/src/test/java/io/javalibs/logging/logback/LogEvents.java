@@ -4,7 +4,9 @@ import java.time.Instant;
 import java.util.Map;
 
 import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.LoggingEvent;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.json.JsonParserFactory;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
@@ -25,6 +27,12 @@ final class LogEvents {
         event.setMessage(message);
         event.setInstant(FIXED_INSTANT);
         event.setThreadName("main");
+        // Logback's LoggingEvent#getMDCPropertyMap() lazily reads the MDC through
+        // the logger context's MDCAdapter whenever the event was not given an
+        // explicit MDC map. Wiring the real SLF4J logger context here mirrors
+        // what Boot's logging pipeline always does, so the formatter can call
+        // getMDCPropertyMap() on any event without a NullPointerException.
+        event.setLoggerContext((LoggerContext) LoggerFactory.getILoggerFactory());
         return event;
     }
 

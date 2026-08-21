@@ -49,5 +49,17 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!--
+      Makes JsonParserFactory#getJsonParser() pick JacksonJsonParser instead of
+      the fallback BasicJsonParser, which always parses whole JSON numbers as
+      Long. Real applications embedding this starter always have Jackson on the
+      classpath (it ships with spring-boot-starter-web/json), so this keeps the
+      test environment representative of production.
+    -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>
