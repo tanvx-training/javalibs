@@ -90,8 +90,13 @@ public final class JavalibsLogFormatSettings {
 
         boolean stacktraceEnabled =
                 environment.getProperty("javalibs.logging.stacktrace.enabled", Boolean.class, Boolean.TRUE);
-        int stacktraceMaxLength = environment.getProperty("javalibs.logging.stacktrace.max-length",
-                Integer.class, DEFAULT_STACKTRACE_MAX_LENGTH);
+        // Bound rather than read via Environment#getProperty so that this
+        // property is reachable by the same relaxed name matching
+        // (max-length, maxLength, MAX_LENGTH, ...) as tags/metadata/masking.keys
+        // above and as LoggingProperties#stacktrace().maxLength() below — a
+        // plain getProperty() call only matches the exact key it names.
+        int stacktraceMaxLength = binder.bind("javalibs.logging.stacktrace.max-length", Bindable.of(Integer.class))
+                .orElse(DEFAULT_STACKTRACE_MAX_LENGTH);
         if (stacktraceMaxLength < 0) {
             // A negative value most likely means "no limit"; falling back to the
             // documented default keeps stack traces readable without silently

@@ -34,11 +34,22 @@ public class RequestLoggingAutoConfiguration {
     /**
      * Registers the request logging filter configured from {@code javalibs.web.logging.*}.
      *
+     * <p>{@code parameterizedContainer = FilterRegistrationBean.class} makes
+     * this back off both for a bare {@code RequestLoggingFilter} bean and for
+     * a {@code FilterRegistrationBean<RequestLoggingFilter>} the application
+     * declares itself, without also backing off for an unrelated
+     * {@code FilterRegistrationBean<SomeOtherFilter>}. A plain
+     * {@code @ConditionalOnMissingBean(RequestLoggingFilter.class)} only
+     * caught the former. This mirrors the condition used by
+     * {@code javalibs-logging}'s {@code AccessLogAutoConfiguration} for the
+     * same reason — both auto-configurations register a filter wrapped in a
+     * {@code FilterRegistrationBean} and back off the same way.</p>
+     *
      * @param properties the bound javalibs web properties
      * @return the filter registration
      */
     @Bean
-    @ConditionalOnMissingBean(RequestLoggingFilter.class)
+    @ConditionalOnMissingBean(value = RequestLoggingFilter.class, parameterizedContainer = FilterRegistrationBean.class)
     public FilterRegistrationBean<RequestLoggingFilter> javalibsRequestLoggingFilter(WebProperties properties) {
         WebProperties.Logging logging = properties.logging();
         RequestLoggingFilter filter = new RequestLoggingFilter(

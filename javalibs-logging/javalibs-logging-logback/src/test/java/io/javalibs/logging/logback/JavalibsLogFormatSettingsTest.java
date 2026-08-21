@@ -117,6 +117,21 @@ class JavalibsLogFormatSettingsTest {
     }
 
     @Test
+    void stacktraceMaxLengthIsReachableByItsRelaxedCamelCaseName() {
+        // tags/metadata/masking.keys above are all bound through Binder, which
+        // accepts max-length, maxLength, and MAX_LENGTH interchangeably. This
+        // property used to be read with Environment#getProperty(), which only
+        // matches the exact key it names -- so an application YAML written as
+        // "maxLength:" (which Spring Boot itself accepts everywhere else, and
+        // which LoggingProperties#stacktrace().maxLength() also binds via
+        // @ConfigurationProperties relaxed binding) was silently ignored here.
+        JavalibsLogFormatSettings settings = JavalibsLogFormatSettings.from(
+                environmentWith(Map.of("javalibs.logging.stacktrace.maxLength", "512")));
+
+        assertThat(settings.stacktraceMaxLength()).isEqualTo(512);
+    }
+
+    @Test
     void metadataIsUnmodifiable() {
         JavalibsLogFormatSettings settings = JavalibsLogFormatSettings.from(
                 environmentWith(Map.of("javalibs.logging.environment", "production")));

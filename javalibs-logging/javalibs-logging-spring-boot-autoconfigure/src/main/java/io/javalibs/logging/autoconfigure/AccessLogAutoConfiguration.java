@@ -45,23 +45,29 @@ public class AccessLogAutoConfiguration {
     /**
      * Registers the access log filter configured from {@code javalibs.logging.*}.
      *
-     * <p>{@code @ConditionalOnMissingBean} is left bare rather than given
-     * {@code HttpAccessLogFilter.class}: that plain filter type is never itself
-     * exposed as a bean — it only ever exists wrapped inside the
-     * {@link FilterRegistrationBean} returned here — so a condition checking for
-     * it would never find a match and would never back off. Leaving the
-     * annotation bare makes Spring Boot infer the candidate type from this
-     * method's return type <em>including its generic parameter</em>, so it
-     * matches another {@code FilterRegistrationBean<HttpAccessLogFilter>} the
+     * <p>{@code HttpAccessLogFilter} is never itself exposed as a bean — it
+     * only ever exists wrapped inside the {@link FilterRegistrationBean}
+     * returned here — so a plain {@code @ConditionalOnMissingBean(HttpAccessLogFilter.class)}
+     * would never find a match and would never back off, while a bare
+     * {@code @ConditionalOnMissingBean} only matches another bean of this
+     * method's raw return type and misses an application-declared
+     * {@code HttpAccessLogFilter} bean that is not wrapped in a registration.
+     * {@code parameterizedContainer = FilterRegistrationBean.class} closes
+     * both gaps at once: it matches a bare {@code HttpAccessLogFilter} bean
+     * <em>and</em> a {@code FilterRegistrationBean<HttpAccessLogFilter>} the
      * application declares, without also backing off for an unrelated
-     * {@code FilterRegistrationBean<SomeOtherFilter>}.</p>
+     * {@code FilterRegistrationBean<SomeOtherFilter>}. This mirrors the
+     * condition used by {@code javalibs-web}'s
+     * {@code RequestLoggingAutoConfiguration} for the same reason — both
+     * auto-configurations register a filter wrapped in a
+     * {@code FilterRegistrationBean} and back off the same way.</p>
      *
      * @param properties        the bound javalibs logging properties
      * @param principalResolver the resolver supplying {@code user_id}
      * @return the filter registration
      */
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(value = HttpAccessLogFilter.class, parameterizedContainer = FilterRegistrationBean.class)
     public FilterRegistrationBean<HttpAccessLogFilter> javalibsHttpAccessLogFilter(
             LoggingProperties properties, PrincipalResolver principalResolver) {
         LoggingProperties.Access access = properties.access();

@@ -120,13 +120,18 @@ public class HttpAccessLogFilter extends OncePerRequestFilter {
 
         String previousUserId = MDC.get(LogFields.MDC_USER_ID);
         String previousClientIp = MDC.get(LogFields.MDC_CLIENT_IP);
+        String previousTags = MDC.get(LogFields.MDC_TAGS);
         long startedAt = startedAtOf(requestToUse);
         try {
             // Every MDC mutation lives inside this try so that a failure in
             // resolving the principal, the client IP, or MDC itself still
             // reaches the finally below and restores what was there before —
-            // otherwise userId/clientIp would stick to this pooled thread and
-            // leak into whatever unrelated request runs on it next.
+            // otherwise userId/clientIp/logTags would stick to this pooled
+            // thread and leak into whatever unrelated request runs on it
+            // next. logTags in particular is also written by application code
+            // via LogContext.tags(), so a caller who forgets the
+            // try-with-resources on that scope relies on this restore to
+            // avoid tags accumulating across requests forever.
             putOrRemove(LogFields.MDC_USER_ID, resolveUserId(requestToUse));
             putOrRemove(LogFields.MDC_CLIENT_IP,
                     clientIpResolver.resolve(requestToUse::getHeader, requestToUse.getRemoteAddr()));
@@ -151,6 +156,7 @@ public class HttpAccessLogFilter extends OncePerRequestFilter {
             } finally {
                 putOrRemove(LogFields.MDC_USER_ID, previousUserId);
                 putOrRemove(LogFields.MDC_CLIENT_IP, previousClientIp);
+                putOrRemove(LogFields.MDC_TAGS, previousTags);
             }
         }
     }

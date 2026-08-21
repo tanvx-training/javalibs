@@ -204,6 +204,25 @@ class HttpAccessLogFilterTest {
     }
 
     @Test
+    void restoresTheOuterMdcTagsRatherThanLeakingAnUnclosedInnerScope() throws Exception {
+        // LogContext.tags() merges with whatever is already in the MDC_TAGS
+        // entry, so a caller who forgets the try-with-resources (the compiler
+        // does not warn -- the returned Scope is simply discarded) leaves the
+        // inner tag stuck in the MDC. Without restoring MDC_TAGS here, that
+        // stuck tag would leak into every subsequent request served by this
+        // pooled thread, accumulating further with each miss.
+        MDC.put(LogFields.MDC_TAGS, "outer");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/me");
+
+        filter(AccessLogSettings.defaults()).doFilter(request, new MockHttpServletResponse(), (req, res) -> {
+            // Deliberately not closed, simulating the missed try-with-resources.
+            LogContext.tags("inner");
+        });
+
+        assertThat(MDC.get(LogFields.MDC_TAGS)).isEqualTo("outer");
+    }
+
+    @Test
     void participatesInTheAsyncRedispatchInsteadOfBeingSkippedByIt() {
         // OncePerRequestFilter#shouldNotFilterAsyncDispatch() defaults to
         // true, which means the filter would never run again on the
