@@ -129,6 +129,20 @@ Mode `oauth2-resource-server` dùng thêm cấu hình chuẩn Boot: `spring.secu
 | `javalibs.cache.caches.<tên>.ttl` | Duration | — | TTL riêng theo tên cache |
 | `javalibs.cache.caches.<tên>.max-size` | Long | — | Giới hạn entry (chỉ Caffeine) |
 
+## javalibs.storage — [tài liệu module](modules/storage.md)
+
+| Thuộc tính | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `javalibs.storage.enabled` | boolean | **`false`** | Bật `JavalibsStorageAutoConfiguration` (hạ tầng — opt-in) |
+| `javalibs.storage.endpoint` | String | — | Endpoint nội bộ dùng cho thao tác server-side (put/get/stat/delete) |
+| `javalibs.storage.external-endpoint` | String | *(rỗng → dùng `endpoint`)* | Endpoint public mà browser gọi để ký presigned URL |
+| `javalibs.storage.access-key` | String | — | Access key |
+| `javalibs.storage.secret-key` | String | — | Secret key |
+| `javalibs.storage.bucket` | String | — | Bucket dùng cho mọi thao tác |
+| `javalibs.storage.ensure-bucket` | boolean | `false` | Tự tạo bucket lúc khởi động nếu chưa có (mở kết nối lúc boot) |
+| `javalibs.storage.presign-put-expiry` | Duration | `10m` | Hạn presigned URL cho PUT |
+| `javalibs.storage.presign-get-expiry` | Duration | `5m` | Hạn presigned URL cho GET |
+
 ## javalibs.resilience — [tài liệu module](modules/resilience.md)
 
 | Thuộc tính | Kiểu | Mặc định | Mô tả |

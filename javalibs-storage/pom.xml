@@ -19,5 +19,7 @@
 
   <modules>
     <module>javalibs-storage-core</module>
+    <module>javalibs-storage-spring-boot-autoconfigure</module>
+    <module>javalibs-storage-spring-boot-starter</module>
   </modules>
 </project>

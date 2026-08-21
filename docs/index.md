@@ -45,6 +45,7 @@ Bộ thư viện dùng chung chuẩn hóa cách xây dựng microservices với 
 |---|---|---|
 | `javalibs-observability` | [observability.md](modules/observability.md) | Correlation ID, MDC propagation, metric tags, tracing |
 | `javalibs-cache` | [cache.md](modules/cache.md) | Redis/Caffeine: key convention, JSON serialize, TTL theo cache |
+| `javalibs-storage` | [storage.md](modules/storage.md) | Object storage MinIO/S3: thao tác server-side + presigned URL upload/download |
 | `javalibs-resilience` | [resilience.md](modules/resilience.md) | Circuit Breaker, Retry, Rate Limiter (Resilience4j) |
 | `javalibs-persistence` | [persistence.md](modules/persistence.md) | Flyway conventions an toàn cho production |
 
@@ -61,6 +62,7 @@ Bộ thư viện dùng chung chuẩn hóa cách xây dựng microservices với 
 | Bắn event Kafka an toàn | `javalibs-datahub-spring-boot-starter` | `javalibs.datahub.outbox.enabled=true` + migration |
 | Tìm kiếm động | `javalibs-search-spring-boot-starter` | — |
 | Cache | `javalibs-cache-spring-boot-starter` | `@EnableCaching` (+ starter-data-redis nếu dùng Redis) |
+| Object storage (MinIO/S3) | `javalibs-storage-spring-boot-starter` | `javalibs.storage.enabled=true` + `endpoint`/`access-key`/`secret-key`/`bucket` |
 | Chống cascading failure | `javalibs-resilience-spring-boot-starter` | `javalibs.resilience.rest.enabled=true` |
 | Swagger docs | `javalibs-openapi-spring-boot-starter` | — |
 | Migration DB | `javalibs-persistence-spring-boot-starter` | `spring.flyway.*` chuẩn Boot |

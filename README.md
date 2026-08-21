@@ -37,6 +37,7 @@ Mỗi module phức tạp được phân rã theo chuỗi 4 tầng chuẩn:
 | `javalibs-search-*` | HTTP params → JPA Specifications (dynamic filtering) | `javalibs-search-spring-boot-starter` |
 | `javalibs-observability-*` | Correlation ID, MDC propagation, common metric tags, tracing | `javalibs-observability-spring-boot-starter` |
 | `javalibs-cache-*` | Redis/Caffeine cache: key convention, JSON serialize, TTL theo cache | `javalibs-cache-spring-boot-starter` |
+| `javalibs-storage-*` | Object storage MinIO/S3: thao tác server-side + presigned URL upload/download | `javalibs-storage-spring-boot-starter` |
 | `javalibs-resilience-*` | Resilience4j: Circuit Breaker, Retry, Rate Limiter với default platform | `javalibs-resilience-spring-boot-starter` |
 | `javalibs-openapi-*` | Swagger/OpenAPI chuẩn hóa: bearer scheme, mã lỗi toàn cục trong docs | `javalibs-openapi-spring-boot-starter` |
 | `javalibs-persistence-*` | Flyway conventions: clean-disabled, naming validation | `javalibs-persistence-spring-boot-starter` |
