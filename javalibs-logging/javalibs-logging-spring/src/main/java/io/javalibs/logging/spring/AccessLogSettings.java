@@ -22,7 +22,16 @@ import java.util.List;
  *                         file-download or large-streaming endpoint can buffer
  *                         that entire payload in heap; leave it off for those
  *                         endpoints, or exclude their paths via
- *                         {@link #excludedPaths}
+ *                         {@link #excludedPaths}. For SSE, a
+ *                         {@code StreamingResponseBody}, or long-polling this
+ *                         is not merely a memory concern but a functional
+ *                         break at any payload size: Spring's
+ *                         {@code ContentCachingResponseWrapper#flushBuffer()}
+ *                         is an unconditional no-op (it compiles to a single
+ *                         {@code return}), so no byte reaches the client until
+ *                         the whole request completes. Excluding those
+ *                         endpoints via {@link #excludedPaths} is mandatory,
+ *                         not optional, once this is turned on
  * @param maxBodyLength    cap on characters kept from each body; values below
  *                         one fall back to {@link #DEFAULT_MAX_BODY_LENGTH}
  * @param excludedPaths    Ant patterns never logged; {@code null} falls back to

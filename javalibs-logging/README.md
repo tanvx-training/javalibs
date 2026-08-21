@@ -44,7 +44,7 @@ javalibs-logging (pom)
 
 | Module | Nội dung chính |
 |---|---|
-| `javalibs-logging-core` | `LogFields` (hằng số tên field theo schema), `SensitiveKeys`/`SensitiveDataMasker` (denylist đệ quy), `ClientIpResolver` (XFF/X-Real-IP/remoteAddr), `LogHost`, `HttpRequestLog`/`HttpResponseLog`. |
+| `javalibs-logging-core` | `LogFields` (hằng số tên field theo schema), `SensitiveKeys` (chính sách denylist)/`SensitiveDataMasker` (che **phẳng**, chỉ body form-urlencoded — đệ quy vào JSON lồng nhau là việc của `JsonWriter` ở module `-logback`), `ClientIpResolver` (XFF/X-Real-IP/remoteAddr), `LogHost`, `HttpRequestLog`/`HttpResponseLog`. |
 | `javalibs-logging-logback` | `JavalibsJsonLogFormatter` (`extends JsonWriterStructuredLogFormatter<ILoggingEvent>`), `JavalibsLogFormatSettings` (đọc `javalibs.logging.*` từ `Environment`), `JavalibsLoggingEnvironmentPostProcessor`. |
 | `javalibs-logging-spring` | `HttpAccessLogFilter` (`OncePerRequestFilter`, thay thế `RequestLoggingFilter` của `javalibs-web`), `PrincipalResolver` (SPI), `LogContext` (scope tag/metadata theo MDC). |
 | `javalibs-logging-spring-boot-autoconfigure` | `LoggingProperties` (`javalibs.logging.*`), `AccessLogAutoConfiguration`. |
@@ -140,12 +140,12 @@ try (LogContext.Scope scope = LogContext.tags("checkout")) {
 
 ## Quan hệ với các module khác
 
-- **`javalibs-web`** có sẵn `RequestLoggingFilter` cũ (phát dòng text `GET /x status=200 duration=12ms`). Filter đó **tự lùi** (`@ConditionalOnMissingClass`) khi `javalibs-logging-spring` có mặt trên classpath, để không log đôi mỗi request. Không cần đặt property nào — chỉ cần thêm dependency.
+- **`javalibs-web`** có sẵn `RequestLoggingFilter` cũ (phát dòng text `GET /x status=200 duration=12ms`). Filter đó **tự lùi** (`@ConditionalOnMissingClass`) khi `javalibs-logging-spring` có mặt trên classpath, để không log đôi mỗi request. Không cần đặt property nào — chỉ cần thêm dependency. **Điều kiện đó chỉ xét sự có mặt của class, không xét property**: đặt `javalibs.logging.access.enabled=false` ở một service có cả hai module sẽ tắt filter mới **mà không** làm filter cũ của `javalibs-web` quay lại — mất trắng access log, không có cảnh báo nào ở khởi động (chi tiết ở [`docs/modules/logging.md`](../docs/modules/logging.md), mục "Lưu ý & bẫy thường gặp").
 - **`javalibs-observability`**: `correlationId` (từ `CorrelationIdFilter`) cùng `traceId`/`spanId` (từ Micrometer Tracing, nếu có) đều nằm trong MDC nên tự chảy vào `metadata` của mọi dòng log — không cần cấu hình thêm.
 
 ## Cảnh báo vận hành
 
-- **`access.include-body` mặc định tắt** vì đây là quyết định có ý thức về PII/GDPR, không phải mặc định vô tình. Bật nó sẽ **đệm trọn response trong bộ nhớ** (`ContentCachingResponseWrapper`) bất kể `max-body-length` — giới hạn đó chỉ áp lúc *ghi* log, không áp lúc *đệm*. Không bật trên service có endpoint tải file/export/streaming, hoặc loại chúng qua `access.excluded-paths`.
+- **`access.include-body` mặc định tắt** vì đây là quyết định có ý thức về PII/GDPR, không phải mặc định vô tình. Bật nó sẽ **đệm trọn response trong bộ nhớ** (`ContentCachingResponseWrapper`) bất kể `max-body-length` — giới hạn đó chỉ áp lúc *ghi* log, không áp lúc *đệm*. Không bật trên service có endpoint tải file/export/streaming, hoặc loại chúng qua `access.excluded-paths`. **Với SSE, `StreamingResponseBody`, hay long-polling thì đây không chỉ là rủi ro bộ nhớ mà là hỏng chức năng ở mọi kích thước payload**: `ContentCachingResponseWrapper#flushBuffer()` của Spring là no-op tuyệt đối, nên không byte nào tới được client cho tới khi request kết thúc hẳn — bắt buộc phải loại các endpoint này qua `access.excluded-paths` một khi bật `include-body`.
 - **`access.trust-proxy` mặc định tắt** vì header `X-Forwarded-For` do client kiểm soát trên một ứng dụng lộ trực tiếp — tin nó vô điều kiện cho phép bất kỳ caller nào tự đặt `ip` trong log điều tra sự cố của hệ thống. Chỉ bật khi ứng dụng thật sự nằm sau reverse proxy có ghi đè header này.
 
 Chi tiết schema từng field, luồng dữ liệu qua các filter và cách viết `PrincipalResolver` riêng: xem [`docs/modules/logging.md`](../docs/modules/logging.md).
