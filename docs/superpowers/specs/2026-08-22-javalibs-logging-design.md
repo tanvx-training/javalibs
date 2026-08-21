@@ -134,8 +134,8 @@ javalibs-logging/
 (`userId`, `clientIp`, `logTags`). Có sẵn tập MDC key "đã tiêu thụ" để formatter
 biết key nào đã lên field cấp cao và không lặp lại chúng trong `metadata`.
 
-**`SensitiveDataMasker`** — duyệt đệ quy `Map` / `List` / `String`, thay giá trị
-của key nhạy cảm bằng `********`.
+**`SensitiveKeys`** — quyết định *một tên field có nhạy cảm hay không*. Đây là
+toàn bộ phần "chính sách", tách khỏi phần "duyệt cấu trúc".
 
 - So khớp key sau khi chuẩn hóa: lowercase + bỏ `_`, `-`, khoảng trắng. Nhờ vậy
   `password`, `Pass_Word`, `PASSWORD`, `pass-word` đều dính cùng một luật.
@@ -144,7 +144,24 @@ của key nhạy cảm bằng `********`.
   `api_key`, `apikey`, `private_key`, `otp`, `pin`, `card_number`, `cvv`, `ssn`.
 - Cấu hình của app **cộng dồn** vào mặc định, không thay thế — để một service
   thêm key riêng không vô tình mở khóa toàn bộ denylist.
-- Có giới hạn độ sâu đệ quy để payload lồng nhau ác ý không gây `StackOverflow`.
+
+**`SensitiveDataMasker`** — che body **không phải JSON** (form-urlencoded dạng
+`user=a&password=b`), trường hợp duy nhất mà cơ chế ở §3.2 không nhìn xuyên qua
+được vì cả body chỉ là một chuỗi tại path `request.body`.
+
+> **Vì sao không viết bộ duyệt đệ quy `Map`/`List` của riêng javalibs:** đã kiểm
+> chứng bằng chương trình chạy thật trên `spring-boot-3.5.3.jar` rằng
+> `JsonWriter.Members.applyingValueProcessor(...)` **tự** đi vào map lồng nhau và
+> phần tử list, và trao cho processor path đầy đủ. Đầu ra thực đo được:
+>
+> ```
+> [path] request.body.password      [path] request.list[0].token
+> {"request":{"method":"POST","body":{"email":"user@example.com",
+>  "password":"********"},"list":[{"token":"********"}]}}
+> ```
+>
+> Bộ duyệt tự viết sẽ là code trùng lặp với thứ Boot đã làm đúng, kèm rủi ro
+> `StackOverflow` mà ta lại phải tự phòng. Chỉ giữ lại phần Boot không làm được.
 
 **`ClientIpResolver`** — thứ tự `X-Forwarded-For` (entry đầu tiên, có validate
 định dạng) → `X-Real-IP` → `remoteAddr`. **Chỉ tin header proxy khi
@@ -188,8 +205,13 @@ Ngoại lệ duy nhất là `errors`, luôn hiện diện dưới dạng `[]` kh
 
 - `errors` là mảng `{ type, message, stacktrace }`, **luôn có mặt**, `[]` khi
   không có lỗi — đúng như schema. `stacktrace` cắt theo `stacktrace.max-length`.
-- Masking cài qua `Members.applyingValueProcessor(...)` nên áp cho **mọi** giá
-  trị đi qua writer, kể cả field lồng sâu trong `request.body`.
+- Masking cài qua `Members.applyingValueProcessor(...)` với một
+  `ValueProcessor<Object>` chặn theo `MemberPath.name()` và hỏi `SensitiveKeys`.
+  Dùng `Object` chứ không phải `String` là có chủ đích: đã đo được rằng
+  `ValueProcessor.of(Object.class, …)` che cả giá trị **số** (`"pin": 1234` →
+  `"********"`), trong khi bản `String` sẽ để lọt. Giá trị `null` không bị đụng
+  (`"secret": null` giữ nguyên — null không mang bí mật), và key thường không bị
+  ảnh hưởng (`"amount": 99` giữ nguyên).
 - MDC key đã lên field cấp cao (`userId`, `clientIp`, `logTags`, `correlationId`)
   không lặp lại trong `metadata`; `correlationId`, `traceId`, `spanId` đi vào
   `metadata` để nối được với `javalibs-observability`.
