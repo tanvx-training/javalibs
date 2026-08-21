@@ -28,6 +28,7 @@
     <module>javalibs-datahub</module>
     <module>javalibs-search</module>
     <module>javalibs-observability</module>
+    <module>javalibs-logging</module>
     <module>javalibs-cache</module>
     <module>javalibs-resilience</module>
     <module>javalibs-openapi</module>
