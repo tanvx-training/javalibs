@@ -7,6 +7,7 @@ import java.util.Map;
 import io.javalibs.logging.LogFields;
 import io.javalibs.logging.SensitiveDataMasker;
 import io.javalibs.logging.SensitiveKeys;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -103,7 +104,12 @@ class HttpAccessLogFilterBodyTest {
     }
 
     @Test
-    void keepsATruncatedJsonBodyAsAStringRatherThanDroppingIt() throws Exception {
+    void replacesATruncatedJsonBodyWithASizedPlaceholderRatherThanLeakingItsCutPrefix() throws Exception {
+        // A cut-off JSON document has no key/value structure left to mask by
+        // field name, so the raw fragment could contain a secret verbatim
+        // (e.g. a truncated {"password":"hunter2"...} keeps "hunter2" in the
+        // kept prefix). The field must stay present -- so the reader knows a
+        // body existed and was cut -- without ever printing its bytes.
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/orders");
         request.setContentType("application/json");
         request.setContent("{\"note\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}".getBytes(StandardCharsets.UTF_8));
@@ -111,8 +117,47 @@ class HttpAccessLogFilterBodyTest {
         filterWithBodies(12).doFilter(request, new MockHttpServletResponse(),
                 (req, res) -> req.getInputStream().readAllBytes());
 
-        assertThat(requestBody()).isInstanceOf(String.class);
-        assertThat((String) requestBody()).hasSizeLessThanOrEqualTo(12);
+        assertThat(requestBody()).isEqualTo("<truncated 12 bytes>");
+    }
+
+    @Test
+    void decodesAJsonBodyAsUtf8EvenWithoutAnExplicitCharsetParameter() throws Exception {
+        // ContentCachingRequestWrapper#getCharacterEncoding() falls back to
+        // ISO-8859-1 when the request declares no charset, but RFC 8259 makes
+        // UTF-8 the default encoding for JSON and most clients never state it
+        // explicitly. Believing the servlet-level fallback would corrupt every
+        // non-ASCII character in every JSON body that omits ;charset=.
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/profile");
+        request.setContentType("application/json");
+        request.setContent("{\"name\":\"Nguyễn Văn A\"}".getBytes(StandardCharsets.UTF_8));
+
+        filterWithBodies(2048).doFilter(request, new MockHttpServletResponse(),
+                (req, res) -> req.getInputStream().readAllBytes());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) requestBody();
+        assertThat(body).containsEntry("name", "Nguyễn Văn A");
+    }
+
+    @Test
+    void parsesAProblemJsonResponseBodyEvenThoughItIsNotPlainApplicationJson() throws Exception {
+        // application/problem+json is the default media type Spring Boot 3's
+        // ProblemDetail responds with -- exactly the kind of error response an
+        // access log needs to capture, so the "+json" suffix must count as
+        // JSON too, not just the literal "application/json" media type.
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/boom");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filterWithBodies(2048).doFilter(request, response, (req, res) -> {
+            res.setContentType("application/problem+json");
+            ((HttpServletResponse) res).setStatus(400);
+            res.getWriter().write("{\"title\":\"Bad Request\"}");
+        });
+
+        assertThat(responseBody()).isInstanceOf(Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) responseBody();
+        assertThat(body).containsEntry("title", "Bad Request");
     }
 
     @Test

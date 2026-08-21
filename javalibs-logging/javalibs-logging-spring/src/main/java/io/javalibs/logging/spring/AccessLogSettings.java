@@ -12,7 +12,17 @@ import java.util.List;
  * @param includeHeaders   whether request headers are logged
  * @param includedHeaders  allowlist of header names to log; {@code null} or
  *                         empty falls back to {@link #DEFAULT_INCLUDED_HEADERS}
- * @param includeBody      whether request and response bodies are logged
+ * @param includeBody      whether request and response bodies are logged.
+ *                         <strong>Response</strong> bodies are always buffered
+ *                         in full by {@code ContentCachingResponseWrapper}
+ *                         before {@code maxBodyLength} is applied — the cap
+ *                         only limits what gets written to the log, not how
+ *                         much memory the wrapper holds while the request is
+ *                         in flight. Turning this on for a service with a
+ *                         file-download or large-streaming endpoint can buffer
+ *                         that entire payload in heap; leave it off for those
+ *                         endpoints, or exclude their paths via
+ *                         {@link #excludedPaths}
  * @param maxBodyLength    cap on characters kept from each body; values below
  *                         one fall back to {@link #DEFAULT_MAX_BODY_LENGTH}
  * @param excludedPaths    Ant patterns never logged; {@code null} falls back to
