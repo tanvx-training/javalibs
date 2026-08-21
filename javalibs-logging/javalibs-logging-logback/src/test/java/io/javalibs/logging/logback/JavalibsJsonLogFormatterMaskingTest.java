@@ -175,4 +175,42 @@ class JavalibsJsonLogFormatterMaskingTest {
 
         assertThat(parsedBody).containsEntry("password", null);
     }
+
+    /**
+     * A record (or any other POJO) handed to {@code addKeyValue(...)} is a known,
+     * documented limitation of masking — see javalibs-logging/README.md § "Che dữ
+     * liệu nhạy cảm" and docs/modules/logging.md § "Lưu ý & bẫy thường gặp" #1.
+     *
+     * <p>{@code Members.applyingValueProcessor(...)} only recurses into
+     * {@code Map}/{@code List}/arrays when walking the object graph; an arbitrary
+     * object is rendered through its own {@code toString()} before masking ever
+     * sees a value to check, so a secret carried by a custom type reaches the log
+     * untouched. This test pins that behavior deliberately: if a future Spring
+     * Boot upgrade changes how {@code JsonWriter} renders unknown object types,
+     * this test starts failing and flags that the documented warning needs a
+     * second look — instead of the documentation silently going stale.</p>
+     */
+    @Test
+    void documentsThatCustomObjectsAreNotMaskedBecauseTheyAreRenderedWithToString() {
+        record Credentials(String email, String password) {
+        }
+
+        LoggingEvent event = LogEvents.event(Level.INFO, "Login attempt");
+        event.setKeyValuePairs(
+                List.of(new KeyValuePair("user", new Credentials("user@example.com", "hunter2"))));
+
+        JavalibsJsonLogFormatter formatter =
+                new JavalibsJsonLogFormatter(LogEvents.settings(Map.of()));
+
+        String json = formatter.format(event);
+
+        // The secret is not masked...
+        assertThat(json).contains("hunter2");
+        // ...because it never became a structured value masking could walk: the
+        // whole record was flattened to one opaque string via toString(), not to
+        // a nested "email"/"password" object.
+        @SuppressWarnings("unchecked")
+        Map<String, Object> metadata = (Map<String, Object>) LogEvents.parse(json).get(LogFields.METADATA);
+        assertThat(metadata.get("user")).isInstanceOf(String.class).asString().contains("hunter2");
+    }
 }

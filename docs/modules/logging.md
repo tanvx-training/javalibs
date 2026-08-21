@@ -6,7 +6,7 @@
 
 | Artifact (`groupId: io.javalibs`) | Nội dung | Phụ thuộc chính |
 |---|---|---|
-| `javalibs-logging-core` | Java thuần, không phụ thuộc framework: `LogFields`, `SensitiveKeys`/`SensitiveDataMasker`, `ClientIpResolver`, `LogHost`, `HttpRequestLog`/`HttpResponseLog` | `javalibs-observability-core` (chỉ để dùng lại `CorrelationId.MDC_KEY`), JDK |
+| `javalibs-logging-core` | Java thuần, không phụ thuộc framework: `LogFields`, `SensitiveKeys`/`SensitiveDataMasker`, `ClientIpResolver`, `LogHost`, `HttpRequestLog`/`HttpResponseLog` | không có (chỉ JDK) |
 | `javalibs-logging-logback` | `JavalibsJsonLogFormatter` (`extends JsonWriterStructuredLogFormatter<ILoggingEvent>`), `JavalibsLogFormatSettings`, `JavalibsLoggingEnvironmentPostProcessor` | core, `logback-classic`, `spring-boot` (compile — mọi ứng dụng Boot đã có sẵn qua `spring-boot-starter-logging`) |
 | `javalibs-logging-spring` | `HttpAccessLogFilter` (`OncePerRequestFilter`), `PrincipalResolver` (SPI) + mặc định, `LogContext` | core, `spring-web`, `jakarta.servlet-api` (provided) |
 | `javalibs-logging-spring-boot-autoconfigure` | `LoggingProperties` (`javalibs.logging.*`), `AccessLogAutoConfiguration` | spring module, logback module, `spring-boot-autoconfigure` |
