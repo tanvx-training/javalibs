@@ -24,5 +24,6 @@
   <modules>
     <module>javalibs-logging-core</module>
     <module>javalibs-logging-logback</module>
+    <module>javalibs-logging-spring</module>
   </modules>
 </project>
