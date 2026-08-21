@@ -33,10 +33,25 @@ public final class LogHost {
         return RESOLVED;
     }
 
-    private static String resolve() {
-        String fromEnvironment = System.getenv("HOSTNAME");
-        if (fromEnvironment != null && !fromEnvironment.isBlank()) {
-            return fromEnvironment.trim();
+    /**
+     * Computes the host name, guaranteed never to throw.
+     *
+     * <p>Every step — including reading the {@code HOSTNAME} environment
+     * variable, which may throw a {@link SecurityException} under a
+     * {@code SecurityManager} — is guarded, so a failure here can never
+     * escape into the static initializer of {@link #RESOLVED} and take down
+     * class loading for every caller of this class.</p>
+     *
+     * @return the host name, never {@code null} or blank
+     */
+    static String resolve() {
+        try {
+            String fromEnvironment = System.getenv("HOSTNAME");
+            if (fromEnvironment != null && !fromEnvironment.isBlank()) {
+                return fromEnvironment.trim();
+            }
+        } catch (RuntimeException ex) {
+            // covers SecurityException, among others; fall through to DNS resolution
         }
         try {
             String hostName = InetAddress.getLocalHost().getHostName();
