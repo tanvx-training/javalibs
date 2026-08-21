@@ -26,6 +26,7 @@ import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
+import org.springframework.web.util.WebUtils;
 
 /**
  * Emits one structured access log event per HTTP request and publishes the
@@ -51,6 +52,23 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
  * uncalled forever, since the container does not run this filter again once
  * async processing is under way unless {@link #shouldNotFilterAsyncDispatch()}
  * says otherwise.</p>
+ *
+ * <p><strong>The response object on the ASYNC re-dispatch is not the same
+ * {@code ContentCachingResponseWrapper} this filter wrapped on the first
+ * pass.</strong> Spring's {@code StandardServletAsyncWebRequest} wraps the
+ * response it was given in its own {@code LifecycleHttpServletResponse}
+ * before handing it to {@code AsyncContext}, and the Servlet spec requires
+ * the container to re-dispatch with exactly that object. So on the second
+ * pass, {@code response instanceof ContentCachingResponseWrapper} is {@code
+ * false} — the wrapper is still in the chain, just one layer deeper. Reading
+ * the response body, or calling {@code copyBodyToResponse()}, therefore goes
+ * through {@link WebUtils#getNativeResponse(jakarta.servlet.ServletResponse,
+ * Class)} rather than an {@code instanceof} check, the same way Spring's own
+ * {@code ShallowEtagHeaderFilter} unwraps a response it did not itself wrap
+ * last. An {@code instanceof} check here silently no-ops on every async
+ * request: the client gets {@code Content-Length: 0}, and {@code
+ * response.body} never appears in the access log line despite {@code
+ * include-body=true}.</p>
  */
 public class HttpAccessLogFilter extends OncePerRequestFilter {
 
@@ -221,8 +239,21 @@ public class HttpAccessLogFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * Flushes the cached response buffer back to the client.
+     *
+     * <p>Unwraps via {@link WebUtils#getNativeResponse(jakarta.servlet.ServletResponse,
+     * Class)} rather than {@code instanceof}: on the ASYNC re-dispatch, the
+     * response the container hands back is Spring's {@code
+     * LifecycleHttpServletResponse} wrapping the {@link
+     * ContentCachingResponseWrapper} from the first pass, not that wrapper
+     * itself. An {@code instanceof} check would find nothing and this method
+     * would silently do nothing, leaving the client with an empty body.</p>
+     */
     private static void copyCachedBody(HttpServletResponse response) {
-        if (response instanceof ContentCachingResponseWrapper wrapper) {
+        ContentCachingResponseWrapper wrapper =
+                WebUtils.getNativeResponse(response, ContentCachingResponseWrapper.class);
+        if (wrapper != null) {
             try {
                 wrapper.copyBodyToResponse();
             } catch (IOException ex) {
@@ -232,14 +263,29 @@ public class HttpAccessLogFilter extends OncePerRequestFilter {
     }
 
     private Object requestBodyOf(HttpServletRequest request) {
-        if (!(request instanceof ContentCachingRequestWrapper wrapper)) {
+        ContentCachingRequestWrapper wrapper =
+                WebUtils.getNativeRequest(request, ContentCachingRequestWrapper.class);
+        if (wrapper == null) {
             return null;
         }
         return bodyOf(wrapper.getContentAsByteArray(), wrapper.getContentType(), wrapper.getCharacterEncoding());
     }
 
+    /**
+     * Renders the captured response body for the access log line.
+     *
+     * <p>Same unwrapping concern as {@link #copyCachedBody(HttpServletResponse)}:
+     * on the ASYNC re-dispatch the response is wrapped one layer deeper than
+     * the {@link ContentCachingResponseWrapper} this filter created, so {@link
+     * WebUtils#getNativeResponse(jakarta.servlet.ServletResponse, Class)} is
+     * required to find it. An {@code instanceof} check here would silently
+     * drop {@code response.body} from the access log for every async request,
+     * even with {@code include-body=true}.</p>
+     */
     private Object responseBodyOf(HttpServletResponse response) {
-        if (!(response instanceof ContentCachingResponseWrapper wrapper)) {
+        ContentCachingResponseWrapper wrapper =
+                WebUtils.getNativeResponse(response, ContentCachingResponseWrapper.class);
+        if (wrapper == null) {
             return null;
         }
         return bodyOf(wrapper.getContentAsByteArray(), wrapper.getContentType(), wrapper.getCharacterEncoding());

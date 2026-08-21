@@ -258,10 +258,24 @@ class HttpAccessLogFilterTest {
         asyncManager.setAsyncWebRequest(new StandardServletAsyncWebRequest(request, response));
         DeferredResult<String> deferredResult = new DeferredResult<>();
 
-        // A real container hands the async re-dispatch the exact same
-        // (already-wrapped) request/response the handler was given on the
-        // first pass -- not fresh ones -- so the test captures them here to
-        // reuse below, the same way AsyncContext would.
+        // A real container does NOT hand the async re-dispatch the exact same
+        // response object the handler was given on the first pass: Spring's
+        // StandardServletAsyncWebRequest wraps it in its own
+        // LifecycleHttpServletResponse before handing it to AsyncContext, so
+        // the re-dispatch response is that wrapper, one layer outside the
+        // ContentCachingResponseWrapper this filter created. MockAsyncContext
+        // does not reproduce that extra layer -- it simply hands back the
+        // same objects captured here, the same way AsyncContext would if
+        // Spring did not interpose LifecycleHttpServletResponse. Because of
+        // that gap, this test cannot exercise the instanceof-vs-
+        // WebUtils.getNativeResponse(...) distinction that the real bug lived
+        // in; AccessLogIncludeBodyAsyncDeliveryTest in the -autoconfigure
+        // module, which runs against a real embedded servlet container, is
+        // the actual evidence for that part of the async flow. This test
+        // still earns its keep for everything else exercised here: that
+        // logging and copyBodyToResponse() are deferred to the second
+        // dispatch, and that MDC/timing behave correctly across the two
+        // passes.
         AtomicReference<HttpServletRequest> wrappedRequest = new AtomicReference<>();
         AtomicReference<HttpServletResponse> wrappedResponse = new AtomicReference<>();
 

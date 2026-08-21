@@ -3,7 +3,6 @@ package io.javalibs.logging.autoconfigure;
 import java.nio.charset.StandardCharsets;
 
 import io.javalibs.logging.spring.HttpAccessLogFilter;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -25,23 +24,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code MockHttpServletRequest}/{@code MockHttpServletResponse} simulation
  * used by {@code HttpAccessLogFilterTest} in {@code javalibs-logging-spring}.
  *
- * <p><strong>Finding (2026-08-22):</strong> the synchronous case works as
- * documented — see {@link #synchronousEndpointDeliversTheFullBodyWithIncludeBodyOn()}.
- * The async case does not: {@link #asyncEndpointFailsToDeliverTheBodyWithIncludeBodyOn_KNOWN_BUG()}
- * reproduces, against a real Tomcat instance, a request to a
- * {@link DeferredResult}-returning endpoint with
- * {@code javalibs.logging.access.include-body=true} coming back with
- * {@code Content-Length: 0} and an empty body — every time, not
- * intermittently, and unaffected by adding a delay before
- * {@code DeferredResult#setResult} to rule out a timing race. This holds even
- * though the mocked unit test
- * {@code HttpAccessLogFilterTest#defersLoggingAndResponseDeliveryUntilAsyncProcessingActuallyCompletes()}
- * passes and asserts the opposite (a fully delivered body) — the mock request/
- * response simulation does not reproduce whatever a real container does
- * differently with the wrapped {@code ContentCachingResponseWrapper} across
- * the {@code AsyncContext} re-dispatch. The test is left in the source tree,
- * disabled, as a reproduction case for follow-up; it is not part of this
- * change's fix scope (see the final fix report for 2026-08-22).</p>
+ * <p>The async case needs a real container because the bug it guards against
+ * only shows up there: on the {@code ASYNC} re-dispatch, Spring's {@code
+ * StandardServletAsyncWebRequest} hands the filter back a response wrapped in
+ * its own {@code LifecycleHttpServletResponse}, one layer outside the {@link
+ * org.springframework.web.util.ContentCachingResponseWrapper}
+ * {@link HttpAccessLogFilter} created on the first pass. The mocked unit test
+ * does not reproduce that extra layer, so this test is the real evidence that
+ * {@link HttpAccessLogFilter} unwraps it correctly via {@code
+ * WebUtils.getNativeResponse(...)} and delivers the full body to the
+ * client.</p>
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT,
         classes = AccessLogIncludeBodyAsyncDeliveryTest.TestApplication.class)
@@ -65,15 +57,7 @@ class AccessLogIncludeBodyAsyncDeliveryTest {
     }
 
     @Test
-    @Disabled("""
-            KNOWN BUG reproduced against a real embedded Tomcat, not covered by the mocked \
-            HttpAccessLogFilterTest#defersLoggingAndResponseDeliveryUntilAsyncProcessingActuallyCompletes(). \
-            With javalibs.logging.access.include-body=true, a DeferredResult-returning endpoint comes back \
-            to the client with Content-Length: 0 and an empty body -- reproducible every run, including \
-            with an added delay before DeferredResult#setResult to rule out a timing race. Left disabled \
-            rather than fixed here: out of scope for the A1-A3 code changes this branch's final-fix pass \
-            was authorized to make. See the 2026-08-22 final fix report for follow-up.""")
-    void asyncEndpointFailsToDeliverTheBodyWithIncludeBodyOn_KNOWN_BUG() {
+    void asyncEndpointDeliversTheFullBodyWithIncludeBodyOn() {
         ResponseEntity<byte[]> response = restTemplate.getForEntity("/async/greeting", byte[].class);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
