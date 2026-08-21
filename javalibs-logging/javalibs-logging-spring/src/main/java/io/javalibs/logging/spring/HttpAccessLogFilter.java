@@ -1,7 +1,10 @@
 package io.javalibs.logging.spring;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import io.javalibs.logging.ClientIpResolver;
@@ -18,8 +21,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.slf4j.spi.LoggingEventBuilder;
+import org.springframework.boot.json.JsonParserFactory;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ContentCachingRequestWrapper;
+import org.springframework.web.util.ContentCachingResponseWrapper;
 
 /**
  * Emits one structured access log event per HTTP request and publishes the
@@ -70,23 +76,33 @@ public class HttpAccessLogFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
+        HttpServletRequest requestToUse = request;
+        HttpServletResponse responseToUse = response;
+        if (settings.includeBody()) {
+            requestToUse = (request instanceof ContentCachingRequestWrapper cached) ? cached
+                    : new ContentCachingRequestWrapper(request, settings.maxBodyLength());
+            responseToUse = (response instanceof ContentCachingResponseWrapper cached) ? cached
+                    : new ContentCachingResponseWrapper(response);
+        }
+
         String previousUserId = MDC.get(LogFields.MDC_USER_ID);
         String previousClientIp = MDC.get(LogFields.MDC_CLIENT_IP);
-        putOrRemove(LogFields.MDC_USER_ID, resolveUserId(request));
+        putOrRemove(LogFields.MDC_USER_ID, resolveUserId(requestToUse));
         putOrRemove(LogFields.MDC_CLIENT_IP,
-                clientIpResolver.resolve(request::getHeader, request.getRemoteAddr()));
+                clientIpResolver.resolve(requestToUse::getHeader, requestToUse.getRemoteAddr()));
 
         long startedAt = System.nanoTime();
         try {
-            filterChain.doFilter(request, response);
+            filterChain.doFilter(requestToUse, responseToUse);
         } finally {
             long latencyMs = (System.nanoTime() - startedAt) / 1_000_000L;
             try {
-                logExchange(request, response, latencyMs);
+                logExchange(requestToUse, responseToUse, latencyMs);
             } catch (RuntimeException ex) {
                 log.warn("Could not write the access log entry for {} {}",
                         request.getMethod(), request.getRequestURI(), ex);
             } finally {
+                copyCachedBody(responseToUse);
                 putOrRemove(LogFields.MDC_USER_ID, previousUserId);
                 putOrRemove(LogFields.MDC_CLIENT_IP, previousClientIp);
             }
@@ -95,9 +111,10 @@ public class HttpAccessLogFilter extends OncePerRequestFilter {
 
     private void logExchange(HttpServletRequest request, HttpServletResponse response, long latencyMs) {
         String endpoint = endpointOf(request);
-        HttpRequestLog requestLog =
-                new HttpRequestLog(request.getMethod(), endpoint, headersOf(request), null);
-        HttpResponseLog responseLog = new HttpResponseLog(response.getStatus(), latencyMs, null);
+        HttpRequestLog requestLog = new HttpRequestLog(request.getMethod(), endpoint,
+                headersOf(request), requestBodyOf(request));
+        HttpResponseLog responseLog =
+                new HttpResponseLog(response.getStatus(), latencyMs, responseBodyOf(response));
 
         boolean slow = settings.slowThresholdMs() > 0 && latencyMs >= settings.slowThresholdMs();
         LoggingEventBuilder builder = slow ? log.atWarn() : log.atInfo();
@@ -139,6 +156,91 @@ public class HttpAccessLogFilter extends OncePerRequestFilter {
             MDC.remove(key);
         } else {
             MDC.put(key, value);
+        }
+    }
+
+    private static void copyCachedBody(HttpServletResponse response) {
+        if (response instanceof ContentCachingResponseWrapper wrapper) {
+            try {
+                wrapper.copyBodyToResponse();
+            } catch (IOException ex) {
+                log.warn("Could not copy the cached response body back to the client", ex);
+            }
+        }
+    }
+
+    private Object requestBodyOf(HttpServletRequest request) {
+        if (!(request instanceof ContentCachingRequestWrapper wrapper)) {
+            return null;
+        }
+        byte[] content = wrapper.getContentAsByteArray();
+        // ContentCachingRequestWrapper is built with maxBodyLength as its own
+        // cache limit, so the captured bytes are already truncated at the
+        // source; comparing against the declared Content-Length is the only
+        // way left to notice that truncation happened.
+        boolean truncated = wrapper.getContentLength() > content.length;
+        return bodyOf(content, wrapper.getContentType(), wrapper.getCharacterEncoding(), truncated);
+    }
+
+    private Object responseBodyOf(HttpServletResponse response) {
+        if (!(response instanceof ContentCachingResponseWrapper wrapper)) {
+            return null;
+        }
+        return bodyOf(wrapper.getContentAsByteArray(), wrapper.getContentType(),
+                wrapper.getCharacterEncoding(), false);
+    }
+
+    /**
+     * Renders a captured payload. JSON is parsed into a map so it nests properly
+     * in the log record; form data is masked; anything binary is dropped
+     * entirely rather than being turned into mojibake.
+     *
+     * <p>A body cut short by {@code maxBodyLength} is never handed to the JSON
+     * parser: a truncated document is not valid JSON, and parsers are not
+     * guaranteed to fail loudly on invalid input — some quietly return whatever
+     * partial structure they managed to read. The truncated text is kept as a
+     * plain string instead of risking either a wrong parse or a dropped field.</p>
+     */
+    private Object bodyOf(byte[] content, String contentType, String encoding, boolean alreadyTruncated) {
+        if (content == null || content.length == 0) {
+            return null;
+        }
+        String type = (contentType != null) ? contentType.toLowerCase(Locale.ROOT) : "";
+        if (!isTextual(type)) {
+            return null;
+        }
+        String raw = new String(content, charsetOf(encoding));
+        boolean truncated = alreadyTruncated || raw.length() > settings.maxBodyLength();
+        if (raw.length() > settings.maxBodyLength()) {
+            raw = raw.substring(0, settings.maxBodyLength());
+        }
+        if (type.startsWith("application/json") && !truncated) {
+            try {
+                return JsonParserFactory.getJsonParser().parseMap(raw);
+            } catch (RuntimeException ex) {
+                return raw;
+            }
+        }
+        if (type.startsWith("application/x-www-form-urlencoded")) {
+            return masker.maskFormEncoded(raw);
+        }
+        return raw;
+    }
+
+    private static boolean isTextual(String contentType) {
+        return contentType.startsWith("application/json")
+                || contentType.startsWith("application/x-www-form-urlencoded")
+                || contentType.startsWith("text/");
+    }
+
+    private static Charset charsetOf(String encoding) {
+        if (encoding == null) {
+            return StandardCharsets.UTF_8;
+        }
+        try {
+            return Charset.forName(encoding);
+        } catch (RuntimeException ex) {
+            return StandardCharsets.UTF_8;
         }
     }
 }
