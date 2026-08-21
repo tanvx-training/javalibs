@@ -2,7 +2,10 @@ package io.javalibs.logging.logback;
 
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -11,6 +14,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.IThrowableProxy;
+import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import io.javalibs.logging.LogFields;
 import org.slf4j.event.KeyValuePair;
 import org.springframework.boot.json.JsonWriter;
@@ -43,6 +48,9 @@ public class JavalibsJsonLogFormatter extends JsonWriterStructuredLogFormatter<I
     private static final Set<String> RESERVED_KEY_VALUES =
             Set.of(LogFields.REQUEST, LogFields.RESPONSE, LogFields.TAGS);
 
+    /** Upper bound on the cause chain, so a cyclic or pathological chain cannot bloat a line. */
+    private static final int MAX_ERROR_CHAIN = 10;
+
     /**
      * Constructor used by Spring Boot's structured logging support.
      *
@@ -69,6 +77,7 @@ public class JavalibsJsonLogFormatter extends JsonWriterStructuredLogFormatter<I
         members.add(LogFields.REQUEST, event -> keyValue(event, LogFields.REQUEST)).whenNotNull();
         members.add(LogFields.RESPONSE, event -> keyValue(event, LogFields.RESPONSE)).whenNotNull();
         members.add(LogFields.TAGS, event -> tags(event, settings)).whenNotEmpty();
+        members.add(LogFields.ERRORS, event -> errors(event, settings));
         members.add(LogFields.METADATA, event -> metadata(event, settings)).whenNotEmpty();
     }
 
@@ -139,5 +148,42 @@ public class JavalibsJsonLogFormatter extends JsonWriterStructuredLogFormatter<I
             }
         }
         return metadata;
+    }
+
+    private static List<Map<String, Object>> errors(ILoggingEvent event,
+            JavalibsLogFormatSettings settings) {
+        IThrowableProxy throwable = event.getThrowableProxy();
+        if (throwable == null) {
+            return List.of();
+        }
+        List<Map<String, Object>> errors = new ArrayList<>(2);
+        Set<IThrowableProxy> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        while (throwable != null && errors.size() < MAX_ERROR_CHAIN && visited.add(throwable)) {
+            Map<String, Object> error = new LinkedHashMap<>(3);
+            error.put(LogFields.ERROR_TYPE, throwable.getClassName());
+            error.put(LogFields.ERROR_MESSAGE, throwable.getMessage());
+            if (settings.stacktraceEnabled()) {
+                error.put(LogFields.ERROR_STACKTRACE,
+                        stackTrace(throwable, settings.stacktraceMaxLength()));
+            }
+            errors.add(error);
+            throwable = throwable.getCause();
+        }
+        return errors;
+    }
+
+    private static String stackTrace(IThrowableProxy throwable, int maxLength) {
+        StackTraceElementProxy[] frames = throwable.getStackTraceElementProxyArray();
+        if (frames == null || frames.length == 0) {
+            return "";
+        }
+        StringBuilder rendered = new StringBuilder(256);
+        for (StackTraceElementProxy frame : frames) {
+            if (rendered.length() >= maxLength) {
+                break;
+            }
+            rendered.append(frame.getSTEAsString()).append('\n');
+        }
+        return (rendered.length() > maxLength) ? rendered.substring(0, maxLength) : rendered.toString();
     }
 }
