@@ -1831,7 +1831,6 @@ Kỳ vọng: **FAIL** — các assertion về `user_id`, `metadata`, `tags` tr�
 Trong `JavalibsJsonLogFormatter.java`, thêm import:
 
 ```java
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -1933,8 +1932,6 @@ Thêm các phương thức trợ giúp vào cuối class:
         return metadata;
     }
 ```
-
-`ArrayList` chưa dùng ở task này — sẽ dùng ở Task 8; nếu trình biên dịch cảnh báo import thừa thì thêm import đó ở Task 8 thay vì bây giờ.
 
 - [ ] **Step 4: Chạy test để chắc chắn nó xanh**
 
