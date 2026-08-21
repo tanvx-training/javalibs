@@ -117,6 +117,31 @@ Mode `oauth2-resource-server` dùng thêm cấu hình chuẩn Boot: `spring.secu
 | `javalibs.observability.metrics.common-tags` | Map | `{}` | Tags gắn vào mọi metric (vd `team: payments`) |
 | `javalibs.observability.metrics.environment` | String | — | Thêm tag `environment` khi đặt |
 
+## javalibs.logging — [tài liệu module](modules/logging.md)
+
+| Thuộc tính | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `javalibs.logging.json.enabled` | boolean | `false` | Bật JSON formatter cho console |
+| `javalibs.logging.service` | String | `${spring.application.name}` | Field `service` |
+| `javalibs.logging.host` | String | hostname máy | Field `host` |
+| `javalibs.logging.environment` | String | — | → `metadata.env` |
+| `javalibs.logging.version` | String | — | → `metadata.version` |
+| `javalibs.logging.metadata` | Map | `{}` | Metadata tĩnh thêm vào mọi dòng |
+| `javalibs.logging.tags` | List | `[]` | Tag tĩnh gắn vào mọi dòng |
+| `javalibs.logging.masking.enabled` | boolean | `true` | Bật che dữ liệu nhạy cảm |
+| `javalibs.logging.masking.keys` | List | `[]` | Cộng dồn vào denylist mặc định (26 key) |
+| `javalibs.logging.masking.value` | String | `********` | Giá trị thay thế |
+| `javalibs.logging.stacktrace.enabled` | boolean | `true` | Ghi stacktrace vào `errors[]` |
+| `javalibs.logging.stacktrace.max-length` | int | `4096` | Trần ký tự mỗi stacktrace; giá trị âm rơi về mặc định |
+| `javalibs.logging.access.enabled` | boolean | `true` | Đăng ký `HttpAccessLogFilter` |
+| `javalibs.logging.access.include-headers` | boolean | `false` | Ghi header request |
+| `javalibs.logging.access.included-headers` | List | `Content-Type, User-Agent, Accept` | Allowlist header |
+| `javalibs.logging.access.include-body` | boolean | `false` | Ghi body request/response (đệm trọn response trong bộ nhớ khi bật) |
+| `javalibs.logging.access.max-body-length` | int | `2048` | Trần ký tự mỗi body khi ghi log |
+| `javalibs.logging.access.excluded-paths` | List | `["/actuator/**"]` | Ant pattern bỏ qua |
+| `javalibs.logging.access.trust-proxy` | boolean | `false` | Tin `X-Forwarded-For`/`X-Real-IP` khi phân giải `ip` |
+| `javalibs.logging.access.slow-threshold-ms` | long | `0` (tắt) | Vượt ngưỡng → log `WARN` |
+
 ## javalibs.cache — [tài liệu module](modules/cache.md)
 
 | Thuộc tính | Kiểu | Mặc định | Mô tả |

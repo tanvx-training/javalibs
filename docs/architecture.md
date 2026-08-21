@@ -70,6 +70,9 @@ security-core ◄── security-spring ◄── security-autoconfigure ◄─�
 datahub-core ◄── datahub-spring ◄── datahub-autoconfigure ◄── datahub-starter
 search-core ◄── search-spring ◄── search-autoconfigure ◄── search-starter
 observability-core ◄── observability-spring ◄── observability-autoconfigure ◄── starter
+logging-core ◄── logging-logback
+logging-core ◄── logging-spring ◄── logging-autoconfigure ◄── logging-starter
+                    (logging-autoconfigure cũng phụ thuộc logging-logback)
 cache-core ◄── cache-spring ◄── cache-autoconfigure ◄── cache-starter
 resilience-spring ◄── resilience-autoconfigure ◄── resilience-starter
 openapi-autoconfigure ◄── openapi-starter
@@ -85,6 +88,7 @@ persistence-autoconfigure ◄── persistence-starter
 | `security` cho phép truy cập Swagger | Path `/swagger-ui/**`, `/v3/api-docs/**` nằm trong `permit-all` mặc định |
 | `datahub` outbox cần bảng DB | DDL tham chiếu ship trong jar; `persistence` (Flyway) chạy migration do service copy vào |
 | `resilience` bảo vệ RestClient của `datahub` | Cả hai đều customize `RestClient.Builder` qua cơ chế chuẩn của Boot |
+| `logging` thay thế request-logging filter cũ của `web` | `web` dùng `@ConditionalOnMissingClass("io.javalibs.logging.spring.HttpAccessLogFilter")` (chỉ tham chiếu tên class, không sinh dependency compile) |
 
 ## Quy ước đặt tên & namespace
 
