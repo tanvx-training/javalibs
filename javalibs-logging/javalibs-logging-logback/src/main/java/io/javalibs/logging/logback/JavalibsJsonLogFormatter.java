@@ -17,6 +17,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import io.javalibs.logging.LogFields;
+import io.javalibs.logging.SensitiveKeys;
 import org.slf4j.event.KeyValuePair;
 import org.springframework.boot.json.JsonWriter;
 import org.springframework.boot.logging.structured.JsonWriterStructuredLogFormatter;
@@ -79,6 +80,9 @@ public class JavalibsJsonLogFormatter extends JsonWriterStructuredLogFormatter<I
         members.add(LogFields.TAGS, event -> tags(event, settings)).whenNotEmpty();
         members.add(LogFields.ERRORS, event -> errors(event, settings));
         members.add(LogFields.METADATA, event -> metadata(event, settings)).whenNotEmpty();
+        if (settings.maskingEnabled()) {
+            members.applyingValueProcessor(maskingProcessor(settings));
+        }
     }
 
     private static Map<String, String> mdc(ILoggingEvent event) {
@@ -188,5 +192,21 @@ public class JavalibsJsonLogFormatter extends JsonWriterStructuredLogFormatter<I
             rendered.append(frame.getSTEAsString()).append('\n');
         }
         return (rendered.length() > maxLength) ? rendered.substring(0, maxLength) : rendered.toString();
+    }
+
+    /**
+     * Builds the processor that replaces every value sitting under a sensitive
+     * field name, at any depth, with the configured mask.
+     *
+     * <p>The processor is typed on {@code Object} rather than {@code String} on
+     * purpose: a secret written as a number — a PIN, a card number — would slip
+     * through a {@code String} processor untouched.</p>
+     */
+    private static JsonWriter.ValueProcessor<Object> maskingProcessor(
+            JavalibsLogFormatSettings settings) {
+        SensitiveKeys keys = settings.sensitiveKeys();
+        String mask = settings.mask();
+        return JsonWriter.ValueProcessor.of(Object.class, (Object value) -> (Object) mask)
+                .whenHasPath(path -> keys.isSensitive(path.name()));
     }
 }
