@@ -26,5 +26,6 @@
     <module>javalibs-logging-logback</module>
     <module>javalibs-logging-spring</module>
     <module>javalibs-logging-spring-boot-autoconfigure</module>
+    <module>javalibs-logging-spring-boot-starter</module>
   </modules>
 </project>
