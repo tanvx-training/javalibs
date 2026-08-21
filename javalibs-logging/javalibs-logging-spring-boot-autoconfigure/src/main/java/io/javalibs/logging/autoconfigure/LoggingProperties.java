@@ -12,13 +12,26 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *
  * <p>These bindings drive the access log filter. The log formatter itself
  * cannot use them — it is created before the application context exists — and
- * reads the same properties straight from the {@code Environment}. Keep the two
- * sets of defaults in step: they describe one feature, not two.</p>
+ * reads the same properties straight from the {@code Environment} via {@code
+ * JavalibsLogFormatSettings}. The two readers share the {@code
+ * javalibs.logging.*} namespace and, for {@code masking}/{@code stacktrace}/
+ * {@code access}, the same defaults — but they are not fully interchangeable:
+ * {@code service}/{@code host}/{@code environment}/{@code version} are bound
+ * here as plain {@code String}s with no fallback, while only {@code
+ * JavalibsLogFormatSettings} applies the {@code spring.application.name} /
+ * {@code LogHost.current()} fallbacks and blank-string filtering described in
+ * {@code docs/modules/logging.md}. No production code reads those four fields
+ * off this record — they exist mainly so IDEs can offer configuration-metadata
+ * completion — so the gap is harmless in practice, but it is a real
+ * discrepancy, not a duplicate read path.</p>
  *
  * @param json        JSON console output settings
- * @param service     value of the {@code service} field; defaults to
- *                    {@code spring.application.name}
- * @param host        value of the {@code host} field; defaults to the machine name
+ * @param service     value of the {@code service} field; bound as-is, with no
+ *                    fallback to {@code spring.application.name} at this layer
+ *                    (see class Javadoc)
+ * @param host        value of the {@code host} field; bound as-is, with no
+ *                    fallback to the machine name at this layer (see class
+ *                    Javadoc)
  * @param environment written to {@code metadata.env}
  * @param version     written to {@code metadata.version}
  * @param metadata    extra metadata attached to every log event

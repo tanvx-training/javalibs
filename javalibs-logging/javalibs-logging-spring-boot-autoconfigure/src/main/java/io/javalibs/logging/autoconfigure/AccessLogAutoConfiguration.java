@@ -49,9 +49,12 @@ public class AccessLogAutoConfiguration {
      * only ever exists wrapped inside the {@link FilterRegistrationBean}
      * returned here — so a plain {@code @ConditionalOnMissingBean(HttpAccessLogFilter.class)}
      * would never find a match and would never back off, while a bare
-     * {@code @ConditionalOnMissingBean} only matches another bean of this
-     * method's raw return type and misses an application-declared
-     * {@code HttpAccessLogFilter} bean that is not wrapped in a registration.
+     * {@code @ConditionalOnMissingBean} has Spring Boot resolve this method's
+     * return type as a full generic {@code ResolvableType} — here, {@code
+     * FilterRegistrationBean<HttpAccessLogFilter>} — so it only matches
+     * another bean of that same parameterized type and misses an
+     * application-declared {@code HttpAccessLogFilter} bean that is not
+     * wrapped in a registration.
      * {@code parameterizedContainer = FilterRegistrationBean.class} closes
      * both gaps at once: it matches a bare {@code HttpAccessLogFilter} bean
      * <em>and</em> a {@code FilterRegistrationBean<HttpAccessLogFilter>} the
