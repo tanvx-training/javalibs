@@ -1,5 +1,6 @@
 package io.javalibs.logging.logback;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ public final class JavalibsLogFormatSettings {
         this.service = service;
         this.host = host;
         this.tags = List.copyOf(tags);
-        this.metadata = Map.copyOf(metadata);
+        this.metadata = Collections.unmodifiableMap(new LinkedHashMap<>(metadata));
         this.sensitiveKeys = sensitiveKeys;
         this.mask = mask;
         this.maskingEnabled = maskingEnabled;

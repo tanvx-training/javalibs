@@ -1,5 +1,6 @@
 package io.javalibs.logging.logback;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import io.javalibs.logging.LogHost;
@@ -8,6 +9,7 @@ import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JavalibsLogFormatSettingsTest {
 
@@ -84,5 +86,26 @@ class JavalibsLogFormatSettingsTest {
 
         assertThat(settings.stacktraceEnabled()).isTrue();
         assertThat(settings.stacktraceMaxLength()).isEqualTo(4096);
+    }
+
+    @Test
+    void metadataPreservesInsertionOrderOfMetadataKeysThenEnvThenVersion() {
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("javalibs.logging.metadata.region", "ap-southeast-1");
+        properties.put("javalibs.logging.environment", "production");
+        properties.put("javalibs.logging.version", "1.2.3");
+
+        JavalibsLogFormatSettings settings = JavalibsLogFormatSettings.from(environmentWith(properties));
+
+        assertThat(settings.metadata().keySet()).containsExactly("region", "env", "version");
+    }
+
+    @Test
+    void metadataIsUnmodifiable() {
+        JavalibsLogFormatSettings settings = JavalibsLogFormatSettings.from(
+                environmentWith(Map.of("javalibs.logging.environment", "production")));
+
+        assertThatThrownBy(() -> settings.metadata().put("extra", "value"))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }
