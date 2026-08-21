@@ -22,7 +22,9 @@ public final class SensitiveKeys {
     public static final Set<String> DEFAULT_KEYS = Set.of(
             "password", "passwd", "token", "access_token", "refresh_token", "id_token",
             "secret", "client_secret", "authorization", "api_key", "apikey",
-            "private_key", "otp", "pin", "card_number", "cvv", "ssn");
+            "private_key", "otp", "pin", "card_number", "cvv", "ssn",
+            "cookie", "set_cookie", "x_api_key", "proxy_authorization", "session_id",
+            "jwt", "secret_key", "api_secret", "credit_card");
 
     private static final SensitiveKeys DEFAULTS = new SensitiveKeys(Set.of(), true);
     private static final SensitiveKeys NONE = new SensitiveKeys(Set.of(), false);

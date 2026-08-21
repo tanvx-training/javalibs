@@ -72,6 +72,14 @@ class JavalibsLogFormatSettingsTest {
     }
 
     @Test
+    void blankMaskingValueFallsBackToTheDefaultMask() {
+        JavalibsLogFormatSettings settings = JavalibsLogFormatSettings.from(
+                environmentWith(Map.of("javalibs.logging.masking.value", "")));
+
+        assertThat(settings.mask()).isEqualTo("********");
+    }
+
+    @Test
     void disablingMaskingYieldsAPolicyThatMatchesNothing() {
         JavalibsLogFormatSettings settings = JavalibsLogFormatSettings.from(
                 environmentWith(Map.of("javalibs.logging.masking.enabled", "false")));

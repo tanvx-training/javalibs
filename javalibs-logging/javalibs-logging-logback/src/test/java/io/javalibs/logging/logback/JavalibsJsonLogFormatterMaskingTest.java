@@ -105,4 +105,74 @@ class JavalibsJsonLogFormatterMaskingTest {
 
         assertThat(body).containsEntry("password", "hunter2");
     }
+
+    @Test
+    void masksSecretsInsideAMapNestedInAList() {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("token", "abc.def.ghi");
+        item.put("scope", "read");
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put(LogFields.METHOD, "POST");
+        request.put(LogFields.ENDPOINT, "/api/sessions");
+        request.put("list", List.of(item));
+
+        LoggingEvent event = LogEvents.event(Level.INFO, "POST /api/sessions 200 42ms");
+        event.setKeyValuePairs(List.of(new KeyValuePair(LogFields.REQUEST, request)));
+
+        JavalibsJsonLogFormatter formatter =
+                new JavalibsJsonLogFormatter(LogEvents.settings(Map.of()));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> parsedRequest =
+                (Map<String, Object>) LogEvents.parse(formatter.format(event)).get(LogFields.REQUEST);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> list = (List<Map<String, Object>>) parsedRequest.get("list");
+
+        assertThat(list.get(0))
+                .containsEntry("token", "********")
+                .containsEntry("scope", "read");
+    }
+
+    @Test
+    void masksAWholeListSittingAtASensitiveKey() {
+        // "token" (singular) is one of SensitiveKeys.DEFAULT_KEYS; matching is by
+        // exact normalized name, not substring, so the key must be spelled exactly
+        // that way for this to exercise the real default policy.
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put(LogFields.METHOD, "POST");
+        request.put(LogFields.ENDPOINT, "/api/tokens");
+        request.put("token", List.of("abc", "def"));
+
+        LoggingEvent event = LogEvents.event(Level.INFO, "POST /api/tokens 200 12ms");
+        event.setKeyValuePairs(List.of(new KeyValuePair(LogFields.REQUEST, request)));
+
+        JavalibsJsonLogFormatter formatter =
+                new JavalibsJsonLogFormatter(LogEvents.settings(Map.of()));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> parsedRequest =
+                (Map<String, Object>) LogEvents.parse(formatter.format(event)).get(LogFields.REQUEST);
+
+        assertThat(parsedRequest).containsEntry("token", "********");
+    }
+
+    @Test
+    void leavesANullValueAtASensitivePathAsNull() {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("password", null);
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put(LogFields.METHOD, "POST");
+        request.put(LogFields.ENDPOINT, "/api/login");
+        request.put(LogFields.BODY, body);
+
+        LoggingEvent event = LogEvents.event(Level.INFO, "POST /api/login 200 5ms");
+        event.setKeyValuePairs(List.of(new KeyValuePair(LogFields.REQUEST, request)));
+
+        JavalibsJsonLogFormatter formatter =
+                new JavalibsJsonLogFormatter(LogEvents.settings(Map.of()));
+
+        Map<String, Object> parsedBody = requestBodyOf(formatter.format(event));
+
+        assertThat(parsedBody).containsEntry("password", null);
+    }
 }

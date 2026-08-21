@@ -22,6 +22,18 @@ class SensitiveKeysTest {
     }
 
     @Test
+    void matchesCommonSecretCarryingNamesSeenInTheWild() {
+        SensitiveKeys keys = SensitiveKeys.defaults();
+
+        assertThat(keys.isSensitive("Cookie")).isTrue();
+        assertThat(keys.isSensitive("Set-Cookie")).isTrue();
+        assertThat(keys.isSensitive("X-API-Key")).isTrue();
+        assertThat(keys.isSensitive("sessionId")).isTrue();
+        assertThat(keys.isSensitive("creditCard")).isTrue();
+        assertThat(keys.isSensitive("apiSecret")).isTrue();
+    }
+
+    @Test
     void leavesOrdinaryKeysAlone() {
         SensitiveKeys keys = SensitiveKeys.defaults();
 

@@ -79,8 +79,14 @@ public final class JavalibsLogFormatSettings {
                 .orElseGet(List::of);
         SensitiveKeys sensitiveKeys =
                 maskingEnabled ? SensitiveKeys.withAdditional(extraKeys) : SensitiveKeys.none();
-        String mask = environment.getProperty("javalibs.logging.masking.value",
-                SensitiveDataMasker.DEFAULT_MASK);
+        // A property present but blank ("javalibs.logging.masking.value=") must fall
+        // back to the default too, matching SensitiveDataMasker's own guard — otherwise
+        // the same configuration would mask JSON fields with an empty string while
+        // form-encoded bodies still get "********".
+        String configuredMask = environment.getProperty("javalibs.logging.masking.value");
+        String mask = (configuredMask != null && !configuredMask.isBlank())
+                ? configuredMask
+                : SensitiveDataMasker.DEFAULT_MASK;
 
         boolean stacktraceEnabled =
                 environment.getProperty("javalibs.logging.stacktrace.enabled", Boolean.class, Boolean.TRUE);
