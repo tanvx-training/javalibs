@@ -7,6 +7,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.LoggingEvent;
 import io.javalibs.logging.LogFields;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.slf4j.event.KeyValuePair;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -103,5 +104,21 @@ class JavalibsJsonLogFormatterContextTest {
 
         assertThat(record).doesNotContainKeys(
                 LogFields.USER_ID, LogFields.IP, LogFields.REQUEST, LogFields.RESPONSE);
+    }
+
+    @Test
+    void doesNotLeakRealMdcStateIntoEventsThatDoNotSetTheirOwnMdc() {
+        MDC.put("leaked", "value");
+        try {
+            LoggingEvent event = LogEvents.event(Level.INFO, "hi");
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> metadata =
+                    (Map<String, Object>) LogEvents.parse(formatter.format(event)).get(LogFields.METADATA);
+
+            assertThat(metadata).doesNotContainKey("leaked");
+        } finally {
+            MDC.clear();
+        }
     }
 }
