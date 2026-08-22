@@ -301,6 +301,33 @@
         <version>${project.version}</version>
       </dependency>
 
+      <!-- Logging (structured JSON) -->
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-logging-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-logging-logback</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-logging-spring</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-logging-spring-boot-autoconfigure</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.javalibs</groupId>
+        <artifactId>javalibs-logging-spring-boot-starter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
       <!-- Persistence (Flyway conventions) -->
       <dependency>
         <groupId>io.javalibs</groupId>

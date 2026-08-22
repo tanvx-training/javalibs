@@ -36,6 +36,7 @@ Mỗi module phức tạp được phân rã theo chuỗi 4 tầng chuẩn:
 | `javalibs-datahub-*` | EventEnvelope + Kafka publisher, REST client có retry mặc định | `javalibs-datahub-spring-boot-starter` |
 | `javalibs-search-*` | HTTP params → JPA Specifications (dynamic filtering) | `javalibs-search-spring-boot-starter` |
 | `javalibs-observability-*` | Correlation ID, MDC propagation, common metric tags, tracing | `javalibs-observability-spring-boot-starter` |
+| `javalibs-logging-*` | Log JSON có cấu trúc: schema cố định mỗi sự kiện, che dữ liệu nhạy cảm, access log HTTP | `javalibs-logging-spring-boot-starter` |
 | `javalibs-cache-*` | Redis/Caffeine cache: key convention, JSON serialize, TTL theo cache | `javalibs-cache-spring-boot-starter` |
 | `javalibs-storage-*` | Object storage MinIO/S3: thao tác server-side + presigned URL upload/download | `javalibs-storage-spring-boot-starter` |
 | `javalibs-resilience-*` | Resilience4j: Circuit Breaker, Retry, Rate Limiter với default platform | `javalibs-resilience-spring-boot-starter` |

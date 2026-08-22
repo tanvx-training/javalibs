@@ -44,6 +44,7 @@ Bộ thư viện dùng chung chuẩn hóa cách xây dựng microservices với 
 | Module | Tài liệu | Vai trò |
 |---|---|---|
 | `javalibs-observability` | [observability.md](modules/observability.md) | Correlation ID, MDC propagation, metric tags, tracing |
+| `javalibs-logging` | [logging.md](modules/logging.md) | Log JSON có cấu trúc, che dữ liệu nhạy cảm, access log HTTP |
 | `javalibs-cache` | [cache.md](modules/cache.md) | Redis/Caffeine: key convention, JSON serialize, TTL theo cache |
 | `javalibs-storage` | [storage.md](modules/storage.md) | Object storage MinIO/S3: thao tác server-side + presigned URL upload/download |
 | `javalibs-resilience` | [resilience.md](modules/resilience.md) | Circuit Breaker, Retry, Rate Limiter (Resilience4j) |
