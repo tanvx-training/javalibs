@@ -18,6 +18,7 @@ import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -142,6 +143,30 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
         String message = "Request method '%s' is not supported".formatted(ex.getMethod());
         return build(CommonErrorCode.METHOD_NOT_ALLOWED, message, request, List.of());
+    }
+
+    /**
+     * Handles the client going away in the middle of an async response (an SSE stream, a
+     * long download): the servlet container reports the broken connection and Spring
+     * signals it as {@link AsyncRequestNotUsableException}.
+     *
+     * <p>This is normal client behaviour, not a server fault, and Spring's own
+     * {@code DefaultHandlerExceptionResolver} discards it silently. That never gets a
+     * chance to run here: {@code ExceptionHandlerExceptionResolver} is ordered ahead of
+     * it, so without this handler the catch-all {@link #handleUnexpected} claims the
+     * exception and logs a full stack trace at ERROR for every disconnect - and then
+     * fails a second time, because the {@link ErrorResponse} body cannot be written into
+     * a response whose Content-Type is already pinned (e.g. {@code text/event-stream}).</p>
+     *
+     * <p>Returns {@code void}: the connection is gone, so there is no body to write.</p>
+     *
+     * @param ex      the thrown exception
+     * @param request the current request
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncRequestNotUsable(AsyncRequestNotUsableException ex, HttpServletRequest request) {
+        log.debug("Client disconnected during async response on {} {}: {}", request.getMethod(),
+                request.getRequestURI(), ex.getMessage());
     }
 
     /**
