@@ -1,12 +1,12 @@
 # javalibs-storage
 
-Chuẩn hóa object storage cho toàn hệ thống trên nền MinIO/S3: một abstraction `ObjectStorage` duy nhất cho thao tác server-side (put/get/stat/delete) và presigned URL cho upload/download trực tiếp từ browser, ký đúng host mà browser thực sự gọi.
+Chuẩn hóa object storage cho toàn hệ thống trên nền MinIO/S3: một abstraction `ObjectStorage` duy nhất cho thao tác server-side (put/get/stat/delete/list) và presigned URL cho upload/download trực tiếp từ browser, ký đúng host mà browser thực sự gọi.
 
 ## Kiến trúc submodule
 
 | Submodule | Vai trò |
 |---|---|
-| `javalibs-storage-core` | Java thuần: `ObjectStorage` (abstraction), `MinioObjectStorage` (impl MinIO với 2 client), `ObjectStat`, `StorageException`, `ContentDispositions` (RFC 5987) |
+| `javalibs-storage-core` | Java thuần: `ObjectStorage` (abstraction), `MinioObjectStorage` (impl MinIO với 2 client), `ObjectStat`, `ObjectInfo` (kết quả `list`), `StorageException`, `ContentDispositions` (RFC 5987) |
 | `javalibs-storage-spring-boot-autoconfigure` | `JavalibsStorageAutoConfiguration` dựng bean `javalibsObjectStorage` từ `javalibs.storage.*`; opt-in vì cần MinIO đang chạy |
 | `javalibs-storage-spring-boot-starter` | Điểm chạm của client — chỉ `pom.xml`, gom core + autoconfigure + MinIO SDK |
 

@@ -3,19 +3,24 @@ package io.javalibs.storage;
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.ListObjectsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.Result;
 import io.minio.StatObjectArgs;
 import io.minio.StatObjectResponse;
 import io.minio.errors.ErrorResponseException;
 import io.minio.http.Method;
+import io.minio.messages.Item;
 
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * MinIO-backed {@link ObjectStorage} holding two clients: one for server-side
@@ -119,6 +124,28 @@ public class MinioObjectStorage implements ObjectStorage {
             client.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(key).build());
         } catch (Exception e) {
             throw new StorageException("delete failed for key " + key, e);
+        }
+    }
+
+    @Override
+    public Stream<ObjectInfo> list(String prefix) {
+        try {
+            Iterable<Result<Item>> results = client.listObjects(ListObjectsArgs.builder()
+                    .bucket(bucket).prefix(prefix).recursive(true).build());
+            return StreamSupport.stream(results.spliterator(), false)
+                    .map(r -> unwrap(r, prefix))
+                    .filter(item -> !item.isDir())
+                    .map(item -> new ObjectInfo(item.objectName(), item.size(), item.lastModified().toInstant()));
+        } catch (Exception e) {
+            throw new StorageException("list failed for prefix " + prefix, e);
+        }
+    }
+
+    private static Item unwrap(Result<Item> result, String prefix) {
+        try {
+            return result.get();
+        } catch (Exception e) {
+            throw new StorageException("list failed for prefix " + prefix, e);
         }
     }
 

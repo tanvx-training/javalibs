@@ -12,6 +12,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,6 +64,61 @@ class MinioObjectStorageIT {
     @Test
     void deleteMissingKeyIsNoOp() {
         storage.delete("missing/y.pdf");
+    }
+
+    @Test
+    void listReturnsEmptyForPrefixWithNoObjects() {
+        try (Stream<ObjectInfo> result = storage.list("list-empty/")) {
+            assertThat(result).isEmpty();
+        }
+    }
+
+    @Test
+    void listFiltersByPrefixRecursively() {
+        putText("list-a/1.txt", "one");
+        putText("list-a/nested/2.txt", "two");
+        putText("list-b/3.txt", "three");
+
+        try (Stream<ObjectInfo> result = storage.list("list-a/")) {
+            assertThat(result.map(ObjectInfo::key))
+                    .containsExactlyInAnyOrder("list-a/1.txt", "list-a/nested/2.txt");
+        }
+    }
+
+    @Test
+    void listHandlesPageBoundaryPastOneThousandObjects() {
+        String prefix = "list-page/";
+        int count = 1050;
+        byte[] bytes = "x".getBytes(StandardCharsets.UTF_8);
+        for (int i = 0; i < count; i++) {
+            storage.put(prefix + i, "text/plain", bytes.length, new ByteArrayInputStream(bytes));
+        }
+
+        List<ObjectInfo> result;
+        try (Stream<ObjectInfo> stream = storage.list(prefix)) {
+            result = stream.toList();
+        }
+
+        assertThat(result).hasSize(count);
+        assertThat(result).allSatisfy(info -> {
+            assertThat(info.size()).isEqualTo(bytes.length);
+            assertThat(info.lastModified()).isNotNull();
+        });
+    }
+
+    @Test
+    void listRoundTripsVietnameseKeyWithSpaces() {
+        String key = "list-vi/báo cáo tháng 9 - bản chính thức.pdf";
+        putText(key, "nội dung");
+
+        try (Stream<ObjectInfo> result = storage.list("list-vi/")) {
+            assertThat(result.map(ObjectInfo::key)).containsExactly(key);
+        }
+    }
+
+    private static void putText(String key, String text) {
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        storage.put(key, "text/plain", bytes.length, new ByteArrayInputStream(bytes));
     }
 
     @Test

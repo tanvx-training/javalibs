@@ -2,6 +2,7 @@ package io.javalibs.storage;
 
 import java.io.InputStream;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Abstraction over an object store (MinIO/S3). Keys are opaque strings owned by the
@@ -24,6 +25,17 @@ public interface ObjectStorage {
 
     /** Deletes the object if present; deleting a missing key is a no-op. */
     void delete(String key);
+
+    /**
+     * Lists every object whose key starts with {@code prefix}, recursively (no
+     * directory-delimiter grouping — a nested key like {@code "a/b/c.pdf"} is
+     * returned by {@code list("a/")} just like a flat one). The returned stream is
+     * lazy: pages are fetched from the store as the stream is consumed, and the
+     * caller must close it (try-with-resources) once done.
+     *
+     * @throws StorageException when the store is unreachable or listing fails
+     */
+    Stream<ObjectInfo> list(String prefix);
 
     /**
      * Presigned PUT URL signed against the external (browser-facing) endpoint.

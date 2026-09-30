@@ -1,13 +1,13 @@
 # javalibs-storage
 
-> Chuẩn hóa object storage cho toàn platform trên nền **MinIO/S3**: một abstraction `ObjectStorage` cho thao tác server-side (put/get/stat/delete) và presigned URL để browser upload/download trực tiếp, ký đúng host mà browser thực sự gọi tới.
+> Chuẩn hóa object storage cho toàn platform trên nền **MinIO/S3**: một abstraction `ObjectStorage` cho thao tác server-side (put/get/stat/delete/list) và presigned URL để browser upload/download trực tiếp, ký đúng host mà browser thực sự gọi tới.
 
 ## Artifacts
 
 | artifactId | Packaging | Mô tả |
 |---|---|---|
 | `javalibs-storage` | pom | Parent gộp 3 submodule |
-| `javalibs-storage-core` | jar | Thuần Java: `ObjectStorage` (abstraction), `MinioObjectStorage` (impl MinIO với 2 client), `ObjectStat` (record `size`/`contentType`), `StorageException`, `ContentDispositions` (RFC 5987). Package `io.javalibs.storage` |
+| `javalibs-storage-core` | jar | Thuần Java: `ObjectStorage` (abstraction), `MinioObjectStorage` (impl MinIO với 2 client), `ObjectStat` (record `size`/`contentType`), `ObjectInfo` (record `key`/`size`/`lastModified`, kết quả `list`), `StorageException`, `ContentDispositions` (RFC 5987). Package `io.javalibs.storage` |
 | `javalibs-storage-spring-boot-autoconfigure` | jar | `JavalibsStorageAutoConfiguration` + `JavalibsStorageProperties` (namespace `javalibs.storage.*`). Package `io.javalibs.storage.autoconfigure` |
 | `javalibs-storage-spring-boot-starter` | jar | Starter: core + autoconfigure + `io.minio:minio`. Không chứa code Java |
 
@@ -23,7 +23,7 @@ Không có tầng `-spring` riêng: `MinioObjectStorage` không cần bất kỳ
 
 **Không dùng khi:**
 
-- Cần thao tác nâng cao của SDK MinIO (versioning, lifecycle policy, multipart thủ công, bucket policy...) — module này chỉ bọc 5 thao tác cơ bản, dùng thẳng `MinioClient` khi cần hơn thế.
+- Cần thao tác nâng cao của SDK MinIO (versioning, lifecycle policy, multipart thủ công, bucket policy...) — module này chỉ bọc 6 thao tác cơ bản, dùng thẳng `MinioClient` khi cần hơn thế.
 - Object cần xử lý ngay trong request (resize ảnh, virus scan...) trước khi lưu — đó là logic nghiệp vụ của service, module chỉ lo lưu trữ.
 
 ## Thành phần chính
@@ -38,12 +38,15 @@ public interface ObjectStorage {
     InputStream get(String key);                       // caller phải close stream
     Optional<ObjectStat> stat(String key);              // empty khi không tồn tại
     void delete(String key);                            // xóa key không tồn tại là no-op
+    Stream<ObjectInfo> list(String prefix);             // đệ quy, lười, caller phải close stream
     String presignPut(String key);
     String presignGet(String key, String contentDisposition);
 }
 ```
 
 `ObjectStat` là `record ObjectStat(long size, String contentType)`.
+
+`list(prefix)` liệt kê mọi object có key bắt đầu bằng `prefix`, **đệ quy** (không nhóm theo dấu phân cách thư mục — key lồng như `"a/b/c.pdf"` vẫn được `list("a/")` trả về như key phẳng). Stream trả về **lười**: từng trang chỉ được `MinioClient` gọi tới MinIO khi stream được tiêu thụ (kể cả qua biên 1000 object/trang, SDK MinIO tự lật trang bằng continuation token), nên caller phải đóng stream (try-with-resources) để giải phóng kết nối listing. Lỗi khi liệt kê (kể cả lỗi lười phát sinh lúc đọc từng trang) ném `StorageException("list failed for prefix " + prefix, e)`. Mỗi phần tử trả về là `record ObjectInfo(String key, long size, Instant lastModified)`.
 
 ### `MinioObjectStorage` — thiết kế 2 client (`javalibs-storage-core`)
 
@@ -69,7 +72,7 @@ Dùng làm tham số `contentDisposition` của `presignGet` — MinIO trả hea
 
 ### `StorageException` (`javalibs-storage-core`)
 
-`RuntimeException` bọc mọi lỗi từ storage (network, auth, object không tồn tại lúc `get`). `stat()` **không** ném exception khi thiếu key — trả `Optional.empty()`; chỉ `get()` ném khi key không tồn tại.
+`RuntimeException` bọc mọi lỗi từ storage (network, auth, object không tồn tại lúc `get`). `stat()` **không** ném exception khi thiếu key — trả `Optional.empty()`; chỉ `get()` ném khi key không tồn tại. `list()` không ném gì cho prefix rỗng kết quả (trả stream rỗng) — chỉ ném khi chính việc liệt kê thất bại.
 
 ### Auto-configuration (`javalibs-storage-spring-boot-autoconfigure`)
 
@@ -160,6 +163,7 @@ public class EvidenceService {
 
 - **Auto-configuration** (`JavalibsStorageAutoConfigurationTest`): `ApplicationContextRunner` — 4 hướng: inactive mặc định, active khi bật đủ property (không mở kết nối vì `ensure-bucket` mặc định `false`), backs off khi có bean `ObjectStorage` của người dùng, inactive khi `MinioClient` không có trên classpath (`FilteredClassLoader`).
 - **`MinioObjectStorage`** (`MinioObjectStorageIT`, `javalibs-storage-core`): Testcontainers MinIO thật — round-trip put/stat/get/delete, `stat` rỗng + `get` ném `StorageException` cho key thiếu, `delete` key thiếu là no-op, presigned PUT/GET dùng `HttpClient` thật gọi thẳng URL trả về, và một test khoá cả 2 việc cùng lúc: dựng `MinioObjectStorage` với `externalEndpoint` **không tồn tại thật** (`http://public.example:9999`) rồi assert `presignPut`/`presignGet` vẫn trả URL trỏ đúng host đó mà **không ném lỗi mạng nào** — vừa khoá "presign phải ký bằng `externalEndpoint`, không phải `endpoint` nội bộ" (nếu đổi nhầm client ký, URL sẽ trỏ host nội bộ reachable thay vì `public.example`), vừa khoá "presign không bao giờ mở kết nối" (nếu quên set `region`, SDK sẽ thật sự gọi mạng tới `public.example` và ném `UnknownHostException`).
+  - `list()`: prefix không có object nào → stream rỗng; 3 tiền tố khác nhau (kể cả key lồng thư mục con) → `list("a/")` chỉ trả đúng key nằm dưới `a/`, đệ quy qua thư mục con; 1050 object (qua biên trang 1000 của MinIO) → đủ 1050 phần tử, `size` đúng, `lastModified` không null; key tiếng Việt có dấu + khoảng trắng round-trip đúng qua `list`.
 - **`ContentDispositionsTest`**: Java thuần — unit test trực tiếp.
 
 ## Lưu ý & bẫy thường gặp
@@ -170,3 +174,4 @@ public class EvidenceService {
 - **`get()` ném exception cho key thiếu, `stat()` thì không** — dùng `stat()` trước nếu chỉ cần kiểm tra tồn tại, tránh dựa vào catch exception cho luồng bình thường.
 - **Presigned URL có hạn cố định lúc dựng bean** (`presign-put-expiry`/`presign-get-expiry`) — không đổi được per-request; cần hạn khác nhau theo tình huống thì tự dựng thêm `MinioObjectStorage` khác hoặc gọi thẳng `MinioClient`.
 - **Tên file tiếng Việt có dấu trong header tải xuống**: luôn dùng `ContentDispositions.attachment/inline` thay vì tự nối chuỗi `Content-Disposition` — tự làm dễ sinh header lỗi encoding với trình duyệt cũ.
+- **`list()` trả stream lười — quên đóng stream rò kết nối listing, tiêu thụ stream 2 lần ném lỗi**: luôn dùng try-with-resources; nếu cần vật chất hoá danh sách (đếm, collect ra `List`) thì làm điều đó bên trong khối try trước khi đóng, không giữ stream qua ranh giới phương thức.
